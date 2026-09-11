@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Lab — Products Decoded</title>
+<meta name="description" content="Small, self-contained things that are quietly satisfying to watch. Physics toys, generative sketches and tiny games. No sign-up, no loading screen, no point.">
+<link rel="canonical" href="https://lab.productsdecoded.com/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Products Decoded — The Lab">
+<meta property="og:title" content="The Lab — Products Decoded">
+<meta property="og:description" content="Small, self-contained things that are quietly satisfying to watch.">
+<meta property="og:url" content="https://lab.productsdecoded.com/">
+<meta property="og:image" content="https://lab.productsdecoded.com/og/lab.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='12' cy='16' r='9' fill='none' stroke='%23f7be3a' stroke-width='3'/><circle cx='21' cy='16' r='9' fill='none' stroke='%23f7be3a' stroke-width='3' opacity='.55'/></svg>">
+<style>
+  :root{
+    --bg:#0a0a0a; --bg-soft:#0e0e0e; --panel:#121212;
+    --line:#1f1f1f; --fg:#f5f5f5; --fg-soft:#d7d7d7; --muted:#8f8f8f;
+    --accent:#f7be3a; --accent-soft:#ffd05c; --accent-line:#3a330f; --accent-panel:#1c1809;
+    --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+    --font:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",system-ui,Roboto,sans-serif;
+    --maxw:1120px;
+  }
+  *{box-sizing:border-box;margin:0}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    background:var(--bg); color:var(--fg); font-family:var(--font);
+    min-height:100vh; overflow-x:hidden; line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+  }
+  body::before{
+    content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+    background-image:
+      linear-gradient(rgba(247,190,58,.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(247,190,58,.035) 1px, transparent 1px);
+    background-size:52px 52px;
+    -webkit-mask-image:radial-gradient(ellipse at 50% 0%, black 0%, transparent 72%);
+            mask-image:radial-gradient(ellipse at 50% 0%, black 0%, transparent 72%);
+  }
+  .wrap{position:relative; z-index:1; max-width:var(--maxw); margin:0 auto; padding:0 clamp(18px,4vw,32px)}
+  a{color:inherit}
+
+  /* ---- top bar ---- */
+  .top{
+    display:flex; align-items:center; justify-content:space-between; gap:16px;
+    padding:20px 0; border-bottom:1px solid var(--line);
+  }
+  .mark{display:flex; align-items:center; gap:11px; text-decoration:none}
+  .mark svg{display:block; flex:none}
+  .mark b{font-family:var(--mono); font-size:12px; font-weight:600; letter-spacing:.18em; text-transform:uppercase}
+  .mark span{font-family:var(--mono); font-size:11px; letter-spacing:.18em; color:var(--muted)}
+  .top nav{display:flex; gap:clamp(14px,3vw,26px); font-family:var(--mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase}
+  .top nav a{color:var(--muted); text-decoration:none; transition:color .2s}
+  .top nav a:hover{color:var(--accent)}
+
+  /* ---- hero ---- */
+  .hero{padding:clamp(52px,11vw,104px) 0 clamp(34px,6vw,56px); max-width:760px}
+  .eyebrow{
+    display:inline-flex; align-items:center; gap:9px;
+    font-family:var(--mono); font-size:10.5px; letter-spacing:.22em; text-transform:uppercase;
+    color:var(--accent-soft); border:1px solid var(--accent-line); background:var(--accent-panel);
+    padding:6px 13px; border-radius:999px; margin-bottom:26px;
+  }
+  .eyebrow i{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:blip 2.4s ease-in-out infinite}
+  @keyframes blip{0%,100%{opacity:1}50%{opacity:.25}}
+  h1{
+    font-size:clamp(38px,7.2vw,70px); line-height:1.02; letter-spacing:-.035em;
+    font-weight:600; margin-bottom:22px;
+  }
+  h1 em{font-style:normal; color:var(--accent)}
+  .lede{font-size:clamp(15.5px,2.1vw,19px); color:var(--fg-soft); max-width:62ch}
+  .lede b{color:var(--fg); font-weight:600}
+  .meta-line{
+    margin-top:28px; font-family:var(--mono); font-size:11px; letter-spacing:.13em;
+    text-transform:uppercase; color:var(--muted);
+    display:flex; flex-wrap:wrap; gap:8px 16px; align-items:center;
+  }
+  .meta-line s{text-decoration:none; color:var(--accent)}
+
+  /* ---- grid ---- */
+  .sect-head{
+    display:flex; align-items:baseline; justify-content:space-between; gap:16px;
+    padding-bottom:14px; border-bottom:1px solid var(--line); margin-bottom:26px;
+  }
+  .sect-head h2{font-family:var(--mono); font-size:11.5px; font-weight:600; letter-spacing:.2em; text-transform:uppercase; color:var(--fg-soft)}
+  .sect-head span{font-family:var(--mono); font-size:11px; letter-spacing:.14em; color:var(--muted)}
+
+  .grid{
+    display:grid; gap:clamp(14px,2.2vw,22px);
+    grid-template-columns:repeat(auto-fill,minmax(290px,1fr));
+    padding-bottom:clamp(60px,10vw,110px);
+  }
+  .card{
+    position:relative; display:flex; flex-direction:column;
+    background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    overflow:hidden; text-decoration:none; isolation:isolate;
+    transition:border-color .28s ease, transform .28s ease;
+  }
+  .card:hover{border-color:var(--a1-dim,#3a330f); transform:translateY(-3px)}
+  .card:focus-visible{outline:2px solid var(--accent); outline-offset:3px}
+
+  /* card art: layered from the toy's own two accents, so each plate is distinct */
+  .plate{
+    position:relative; aspect-ratio:16/10; overflow:hidden;
+    background:
+      radial-gradient(70% 90% at 30% 18%, color-mix(in srgb, var(--a1) 26%, transparent), transparent 62%),
+      radial-gradient(64% 84% at 82% 94%, color-mix(in srgb, var(--a2) 20%, transparent), transparent 62%),
+      #0b0b0b;
+    border-bottom:1px solid var(--line);
+  }
+  .plate::before{
+    content:''; position:absolute; inset:0;
+    background-image:
+      linear-gradient(rgba(255,255,255,.045) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.045) 1px, transparent 1px);
+    background-size:30px 30px;
+    -webkit-mask-image:radial-gradient(ellipse at 50% 50%, black 18%, transparent 76%);
+            mask-image:radial-gradient(ellipse at 50% 50%, black 18%, transparent 76%);
+  }
+  .plate .rings{position:absolute; inset:0; display:grid; place-items:center}
+  .plate .rings i{
+    position:absolute; border-radius:50%; border:1.5px solid var(--a1);
+    opacity:.5; width:46%; aspect-ratio:1;
+    animation:breathe 6s ease-in-out infinite;
+  }
+  .plate .rings i:nth-child(2){border-color:var(--a2); width:66%; opacity:.28; animation-delay:-2s}
+  .plate .rings i:nth-child(3){border-color:var(--a1); width:86%; opacity:.14; animation-delay:-4s}
+  @keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.09)}}
+  .plate img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block}
+  .plate .idx{
+    position:absolute; left:16px; top:14px; z-index:2;
+    font-family:var(--mono); font-size:11px; letter-spacing:.16em; color:var(--muted);
+  }
+  .plate .play{
+    position:absolute; right:14px; bottom:13px; z-index:2;
+    font-family:var(--mono); font-size:10.5px; letter-spacing:.16em; text-transform:uppercase;
+    color:#0a0a0a; background:var(--a1); padding:6px 11px; border-radius:999px;
+    opacity:0; transform:translateY(6px); transition:opacity .25s, transform .25s;
+  }
+  .card:hover .play, .card:focus-visible .play{opacity:1; transform:translateY(0)}
+  @media (prefers-reduced-motion: reduce){
+    .plate .rings i{animation:none}
+    .plate .play{opacity:1; transform:none}
+    .card:hover{transform:none}
+    .eyebrow i{animation:none}
+  }
+  /* touch devices never hover — show the CTA by default */
+  @media (pointer: coarse){
+    .plate .play{opacity:1; transform:none}
+  }
+
+  .card-body{padding:17px 18px 19px; display:flex; flex-direction:column; gap:9px; flex:1}
+  .card-body h3{font-size:18px; font-weight:600; letter-spacing:-.015em}
+  .card-body p{font-size:14px; color:var(--muted); line-height:1.5; flex:1}
+  .tags{display:flex; flex-wrap:wrap; gap:6px; margin-top:2px}
+  .tags s{
+    text-decoration:none; font-family:var(--mono); font-size:10px; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--muted);
+    border:1px solid var(--line); border-radius:5px; padding:3px 7px;
+  }
+
+  .ghost{
+    display:flex; flex-direction:column; justify-content:center; gap:10px;
+    border:1px dashed var(--line); border-radius:14px; padding:26px 22px; min-height:180px;
+  }
+  .ghost b{font-family:var(--mono); font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--fg-soft)}
+  .ghost p{font-size:14px; color:var(--muted)}
+  .ghost a{color:var(--accent); text-decoration:none; border-bottom:1px solid var(--accent-line)}
+  .ghost a:hover{border-bottom-color:var(--accent)}
+
+  footer{border-top:1px solid var(--line); padding:28px 0 44px}
+  .foot{display:flex; flex-wrap:wrap; gap:14px 26px; justify-content:space-between; align-items:center;
+    font-family:var(--mono); font-size:11px; letter-spacing:.13em; text-transform:uppercase; color:var(--muted)}
+  .foot a{text-decoration:none; color:var(--muted); transition:color .2s}
+  .foot a:hover{color:var(--accent)}
+  .foot nav{display:flex; gap:18px; flex-wrap:wrap}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <header class="top">
+    <a class="mark" href="https://productsdecoded.com">
+      <svg width="30" height="22" viewBox="0 0 30 22" fill="none" aria-hidden="true">
+        <circle cx="11" cy="11" r="8.5" stroke="#f7be3a" stroke-width="2"/>
+        <circle cx="19" cy="11" r="8.5" stroke="#f7be3a" stroke-width="2" opacity=".5"/>
+      </svg>
+      <b>Products Decoded</b><span>/ Lab</span>
+    </a>
+    <nav>
+      <a href="/about.html">About</a>
+      <a href="https://productsdecoded.com">Main site</a>
+    </nav>
+  </header>
+
+  <section class="hero">
+    <span class="eyebrow"><i></i>Open experiments</span>
+    <h1>Small things that are <em>very hard to stop watching.</em></h1>
+    <p class="lede">Physics toys, generative sketches and tiny games — each one a <b>single HTML file</b> that runs the moment it loads. No sign-up, no tutorial, no loading screen. Built mostly to see whether an idea feels good before it becomes a product.</p>
+    <p class="meta-line">
+      <span><s id="count">1</s> experiment</span>
+      <span>·</span>
+      <span>Runs in the browser</span>
+      <span>·</span>
+      <span>Source on <a href="https://github.com/debashisn94/pd-lab" style="color:var(--accent);text-decoration:none">GitHub</a></span>
+    </p>
+  </section>
+
+  <div class="sect-head">
+    <h2>Index</h2>
+    <span id="updated">Updated Sep 2026</span>
+  </div>
+
+  <main class="grid" id="grid"></main>
+
+  <footer>
+    <div class="foot">
+      <span>© <span id="yr">2026</span> Products Decoded</span>
+      <nav>
+        <a href="/about.html">About</a>
+        <a href="/privacy.html">Privacy</a>
+        <a href="https://github.com/debashisn94/pd-lab">GitHub</a>
+        <a href="https://productsdecoded.com">productsdecoded.com</a>
+      </nav>
+    </div>
+  </footer>
+
+</div>
+
+<script>
+/* ────────────────────────────────────────────────────────────
+   ADD A NEW EXPERIMENT: drop its folder in /t/<slug>/index.html
+   then add one entry here. That is the whole process.
+   `poster` is optional — leave it out and the CSS plate is used.
+   ──────────────────────────────────────────────────────────── */
+const TOYS = [
+  {
+    slug:  'collision-chamber',
+    title: 'Collision Chamber',
+    blurb: 'Launch two disks into a circle. Every impact breeds a new one in a new colour, so the chamber fills itself — slowly, then all at once.',
+    tags:  ['physics', 'canvas', 'generative'],
+    a1:    '#ffb454',
+    a2:    '#53e0c8',
+    added: '2026-09-12'
+  },
+];
+
+const grid = document.getElementById('grid');
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+grid.innerHTML = TOYS.map((t, i) => {
+  const n = String(i + 1).padStart(2, '0');
+  const art = t.poster
+    ? `<img src="${esc(t.poster)}" alt="" loading="lazy" width="640" height="400">`
+    : `<div class="rings"><i></i><i></i><i></i></div>`;
+  return `
+  <a class="card" href="/t/${esc(t.slug)}/" style="--a1:${esc(t.a1)};--a2:${esc(t.a2)};--a1-dim:${esc(t.a1)}66">
+    <div class="plate">
+      ${art}
+      <span class="idx">${n}</span>
+      <span class="play">Open ↗</span>
+    </div>
+    <div class="card-body">
+      <h3>${esc(t.title)}</h3>
+      <p>${esc(t.blurb)}</p>
+      <div class="tags">${t.tags.map(x => `<s>${esc(x)}</s>`).join('')}</div>
+    </div>
+  </a>`;
+}).join('') + `
+  <div class="ghost">
+    <b>More landing here</b>
+    <p>New experiments get added as they get built. The whole set is open source — fork one, or send an idea.</p>
+    <p><a href="https://github.com/debashisn94/pd-lab">github.com/debashisn94/pd-lab</a></p>
+  </div>`;
+
+document.getElementById('count').textContent = TOYS.length;
+document.getElementById('yr').textContent = new Date().getFullYear();
+const newest = TOYS.map(t => t.added).sort().pop();
+if (newest) {
+  document.getElementById('updated').textContent = 'Updated ' +
+    new Date(newest + 'T00:00:00').toLocaleDateString('en-GB', { month:'short', year:'numeric' });
+}
+</script>
+<script defer src="/_vercel/insights/script.js"></script>
+</body>
+</html>

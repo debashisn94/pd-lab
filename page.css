@@ -1,0 +1,55 @@
+/* Shared shell for the Lab's text pages. The index and each experiment
+   carry their own inline styles so they stay self-contained. */
+:root{
+  --bg:#0a0a0a; --bg-soft:#0e0e0e; --panel:#121212;
+  --line:#1f1f1f; --fg:#f5f5f5; --fg-soft:#d7d7d7; --muted:#8f8f8f;
+  --accent:#f7be3a; --accent-soft:#ffd05c; --accent-line:#3a330f; --accent-panel:#1c1809;
+  --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",system-ui,Roboto,sans-serif;
+}
+*{box-sizing:border-box;margin:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  background:var(--bg); color:var(--fg); font-family:var(--font);
+  min-height:100vh; line-height:1.62; -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1120px; margin:0 auto; padding:0 clamp(18px,4vw,32px)}
+a{color:var(--accent)}
+
+.top{
+  display:flex; align-items:center; justify-content:space-between; gap:16px;
+  padding:20px 0; border-bottom:1px solid var(--line);
+}
+.mark{display:flex; align-items:center; gap:11px; text-decoration:none; color:var(--fg)}
+.mark svg{display:block; flex:none}
+.mark b{font-family:var(--mono); font-size:12px; font-weight:600; letter-spacing:.18em; text-transform:uppercase}
+.mark span{font-family:var(--mono); font-size:11px; letter-spacing:.18em; color:var(--muted)}
+.top nav{display:flex; gap:clamp(14px,3vw,26px); font-family:var(--mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase}
+.top nav a{color:var(--muted); text-decoration:none; transition:color .2s}
+.top nav a:hover{color:var(--accent)}
+
+.prose{max-width:68ch; padding:clamp(46px,9vw,84px) 0 clamp(56px,9vw,96px)}
+.eyebrow-s{
+  font-family:var(--mono); font-size:10.5px; letter-spacing:.22em; text-transform:uppercase;
+  color:var(--accent); margin-bottom:18px;
+}
+.prose h1{font-size:clamp(32px,5.4vw,50px); line-height:1.06; letter-spacing:-.03em; font-weight:600; margin-bottom:26px}
+.prose h2{
+  font-size:14px; font-family:var(--mono); font-weight:600; letter-spacing:.16em; text-transform:uppercase;
+  color:var(--fg-soft); margin:42px 0 14px; padding-top:20px; border-top:1px solid var(--line);
+}
+.prose h3{font-size:16px; font-weight:600; margin:26px 0 8px; letter-spacing:-.01em}
+.prose p{color:var(--fg-soft); margin-bottom:16px; font-size:16.5px}
+.prose p b{color:var(--fg); font-weight:600}
+.prose ul{color:var(--fg-soft); margin:0 0 16px; padding-left:20px; font-size:16.5px}
+.prose li{margin-bottom:9px}
+.prose a{text-decoration:none; border-bottom:1px solid var(--accent-line)}
+.prose a:hover{border-bottom-color:var(--accent)}
+.prose .small{font-size:14px; color:var(--muted)}
+
+footer{border-top:1px solid var(--line); padding:28px 0 44px}
+.foot{display:flex; flex-wrap:wrap; gap:14px 26px; justify-content:space-between; align-items:center;
+  font-family:var(--mono); font-size:11px; letter-spacing:.13em; text-transform:uppercase; color:var(--muted)}
+.foot a{text-decoration:none; color:var(--muted); transition:color .2s}
+.foot a:hover{color:var(--accent)}
+.foot nav{display:flex; gap:18px; flex-wrap:wrap}

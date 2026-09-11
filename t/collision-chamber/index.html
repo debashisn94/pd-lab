@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Collision Chamber — Products Decoded Lab</title>
+<meta name="description" content="Launch two disks into a circle. Every impact breeds a new one in a new colour, so the chamber fills itself — slowly, then all at once. A self-contained physics toy that runs in your browser.">
+<link rel="canonical" href="https://lab.productsdecoded.com/t/collision-chamber/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Products Decoded — The Lab">
+<meta property="og:title" content="Collision Chamber">
+<meta property="og:description" content="Two disks. Every impact breeds another. Watch a circle fill itself.">
+<meta property="og:url" content="https://lab.productsdecoded.com/t/collision-chamber/">
+<meta property="og:image" content="https://lab.productsdecoded.com/og/collision-chamber.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='12' cy='16' r='9' fill='none' stroke='%23ffb454' stroke-width='3'/><circle cx='21' cy='16' r='9' fill='none' stroke='%2353e0c8' stroke-width='3'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0c1218; --panel:#121c27; --panel2:#0f1721;
+    --line:#223349; --ink:#e8f0f6; --dim:#7d93a6;
+    --amber:#ffb454; --amber2:#ff9c33; --teal:#53e0c8; --red:#ff6b5e;
+  }
+  *{box-sizing:border-box;margin:0}
+  html,body{height:100%}
+  body{
+    font-family:'IBM Plex Mono',monospace; color:var(--ink);
+    display:flex; flex-direction:column; min-height:100vh; overflow-x:hidden;
+    background:
+      radial-gradient(1000px 640px at 8% -10%, rgba(255,158,60,.075), transparent 60%),
+      radial-gradient(880px 620px at 104% 112%, rgba(83,224,200,.06), transparent 60%),
+      var(--bg);
+  }
+  body::before{
+    content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+    background-image:
+      linear-gradient(rgba(148,180,210,.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(148,180,210,.05) 1px, transparent 1px);
+    background-size:46px 46px;
+    -webkit-mask-image:radial-gradient(ellipse at 50% 45%, black 30%, transparent 78%);
+            mask-image:radial-gradient(ellipse at 50% 45%, black 30%, transparent 78%);
+  }
+  body::after{
+    content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+    background:radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,.38) 100%);
+  }
+  ::selection{background:rgba(255,180,84,.35)}
+
+  .topbar{
+    position:relative; z-index:2; flex:none;
+    display:flex; justify-content:space-between; align-items:center;
+    padding:14px clamp(18px,3vw,32px); border-bottom:1px solid var(--line);
+  }
+  .brand{display:flex; align-items:center; gap:11px; text-decoration:none; color:inherit; transition:opacity .2s}
+  .brand:hover{opacity:.7}
+  .brand:focus-visible{outline:2px solid var(--amber); outline-offset:4px; border-radius:6px}
+  .brand svg{display:block}
+  .brand b{font:700 12px 'Unbounded'; letter-spacing:.16em}
+  .brand small{font:500 10px 'IBM Plex Mono'; letter-spacing:.2em; color:var(--dim)}
+  .pill{
+    display:inline-flex; align-items:center; gap:8px;
+    font:500 10px 'IBM Plex Mono'; letter-spacing:.18em;
+    padding:7px 14px; border-radius:999px; border:1px solid var(--line); color:var(--dim);
+    transition:color .3s, border-color .3s;
+  }
+  .pill .dot{width:7px;height:7px;border-radius:50%;background:#5b6c7d;transition:background .3s}
+  .pill.st-run{border-color:rgba(67,230,176,.4);color:#9fe8d6}
+  .pill.st-run .dot{background:#43e6b0;box-shadow:0 0 8px #43e6b0;animation:pulse 1.2s infinite}
+  .pill.st-full{border-color:rgba(255,180,84,.45);color:#ffd9a8}
+  .pill.st-full .dot{background:var(--amber);box-shadow:0 0 8px rgba(255,180,84,.8)}
+  @keyframes pulse{50%{opacity:.3}}
+
+  .stage{
+    position:relative; z-index:1; flex:1;
+    display:grid; grid-template-columns:minmax(0,1fr) 390px;
+    gap:clamp(28px,4vw,64px); align-items:center;
+    width:100%; max-width:1300px; margin:0 auto;
+    padding:clamp(18px,4vh,44px) clamp(18px,4vw,48px);
+  }
+  .chamber-col{display:flex; justify-content:center; min-width:0}
+  .chamber{position:relative; width:min(100%,600px); aspect-ratio:1}
+  .halo{
+    position:absolute; inset:-26px; border:1px dashed rgba(140,180,210,.18);
+    border-radius:50%; z-index:0; animation:spin 90s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+  #cv{position:absolute; inset:0; width:100%; height:100%; border-radius:50%; z-index:1; background:#0a0f15}
+  .overlay{position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:2}
+  #gauge{transition:stroke-dashoffset .3s ease, stroke .5s ease}
+  .chamber::after{
+    content:''; position:absolute; inset:0; border-radius:50%; pointer-events:none; z-index:3;
+    box-shadow:inset 0 4px 26px rgba(255,255,255,.05), inset 0 -14px 46px rgba(0,0,0,.5), 0 30px 80px rgba(0,0,0,.55);
+  }
+  .chamber.full #gauge{stroke:var(--amber)}
+  .anno{position:absolute; z-index:4; font:500 9.5px 'IBM Plex Mono'; letter-spacing:.1em; color:rgba(150,175,195,.55)}
+  .a1{top:8px; left:16px} .a2{bottom:10px; right:16px}
+
+  .console{
+    position:relative; overflow:hidden;
+    background:linear-gradient(180deg,var(--panel),var(--panel2));
+    border:1px solid var(--line); border-radius:12px;
+    padding:clamp(22px,3vw,34px);
+  }
+  .console::before{content:''; position:absolute; top:0; left:0; right:0; height:3px;
+    background:linear-gradient(90deg,var(--teal),var(--amber))}
+  .console::after{content:'01'; position:absolute; right:10px; top:-6px;
+    font:900 92px 'Unbounded'; color:rgba(255,255,255,.03); pointer-events:none}
+  .c-head{
+    display:flex; justify-content:space-between; padding-bottom:14px; margin-bottom:20px;
+    border-bottom:1px solid var(--line);
+    font:500 10px 'IBM Plex Mono'; letter-spacing:.24em; color:var(--dim);
+  }
+  .kicker{display:flex; align-items:center; gap:10px;
+    font:500 10px 'IBM Plex Mono'; letter-spacing:.28em; color:var(--teal)}
+  .kicker::before{content:''; width:22px; height:1px; background:var(--teal)}
+  h1{font:900 clamp(27px,2.6vw,38px)/1.08 'Unbounded'; letter-spacing:.01em; margin:14px 0 14px}
+  h1 em{font-style:normal; color:var(--amber)}
+  .lede{font:400 13px/1.7 'IBM Plex Mono'; color:var(--dim); max-width:42ch; margin-bottom:24px}
+
+  .big-stat{padding:4px 0 18px; border-bottom:1px solid var(--line)}
+  .label{display:block; font:500 10px 'IBM Plex Mono'; letter-spacing:.22em; color:var(--dim)}
+  .big{display:block; font:900 clamp(46px,4.5vw,62px)/1.1 'Unbounded';
+    font-variant-numeric:tabular-nums; margin-top:6px}
+  .stats{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; padding:18px 0 16px}
+  .stat{border:1px solid var(--line); border-radius:7px; padding:10px 12px; background:rgba(10,15,21,.4)}
+  .val{display:block; font:600 17px 'IBM Plex Mono'; color:#cfe3ee; margin-top:5px; font-variant-numeric:tabular-nums}
+
+  .bar-row{display:flex; align-items:center; gap:12px; margin-bottom:24px}
+  .bar{flex:1; height:10px; border:1px solid var(--line); background:#0a0f15; position:relative; overflow:hidden}
+  .bar i{display:block; height:100%; width:0%;
+    background:linear-gradient(90deg,var(--teal),var(--amber)); transition:width .3s ease}
+  .bar::after{content:''; position:absolute; inset:0;
+    background:repeating-linear-gradient(90deg, transparent 0 9px, rgba(10,15,21,.8) 9px 10px)}
+  .bar-row .end{text-align:right}
+
+  .btns{display:flex; gap:12px; margin-bottom:18px}
+  .btn{
+    font:700 13px 'Unbounded'; letter-spacing:.1em; border:none; border-radius:9px;
+    padding:17px 14px; cursor:pointer; user-select:none;
+    transition:transform .15s ease, box-shadow .15s ease, background .2s ease, color .2s ease;
+  }
+  .btn:focus-visible{outline:2px solid var(--teal); outline-offset:3px}
+  .btn-start{
+    flex:1.55; color:#2a1500;
+    background:linear-gradient(180deg,#ffc978,var(--amber2));
+    box-shadow:0 5px 0 #7c3f0a, 0 14px 30px rgba(255,150,50,.22);
+  }
+  .btn-start:hover:not(:disabled){transform:translateY(-2px);
+    box-shadow:0 7px 0 #7c3f0a, 0 18px 34px rgba(255,150,50,.3)}
+  .btn-start:active:not(:disabled){transform:translateY(3px); box-shadow:0 2px 0 #7c3f0a}
+  .btn-start:disabled{background:#39465a; color:#8fa1b1; box-shadow:0 5px 0 #202a38; cursor:default}
+  .btn-reset{
+    flex:1; color:#ff8d82; background:rgba(255,107,94,.05);
+    border:1px solid rgba(255,107,94,.55); box-shadow:0 5px 0 rgba(255,107,94,.18);
+  }
+  .btn-reset:hover{background:rgba(255,107,94,.14); transform:translateY(-2px);
+    box-shadow:0 7px 0 rgba(255,107,94,.22)}
+  .btn-reset:active{transform:translateY(3px); box-shadow:0 1px 0 rgba(255,107,94,.18)}
+  .hint{font:400 11px 'IBM Plex Mono'; color:var(--dim); letter-spacing:.04em}
+  kbd{font:600 9.5px 'IBM Plex Mono'; border:1px solid var(--line); border-bottom-width:2px;
+    border-radius:5px; padding:2px 7px; background:#0a0f15; color:#aebfcc}
+  .hint span{color:#3d4f63}
+
+  .ticker{position:relative; z-index:2; flex:none; overflow:hidden;
+    border-top:1px solid var(--line); background:#0a0f15; padding:9px 0}
+  .track{display:inline-flex; white-space:nowrap; animation:tick 32s linear infinite; will-change:transform}
+  .ticker:hover .track{animation-play-state:paused}
+  .track span{font:500 10px/1 'IBM Plex Mono'; letter-spacing:.24em; color:rgba(130,155,175,.5); padding-right:56px}
+  @keyframes tick{to{transform:translateX(-50%)}}
+
+  .err{
+    position:fixed; left:16px; bottom:16px; z-index:50; max-width:70vw;
+    font:500 12px/1.5 'IBM Plex Mono'; color:#ffb4ad; background:rgba(52,14,10,.94);
+    border:1px solid rgba(255,107,94,.6); border-radius:8px; padding:10px 14px;
+    box-shadow:0 8px 30px rgba(0,0,0,.5);
+  }
+
+  @media (max-width:1020px){
+    .stage{grid-template-columns:1fr; gap:34px}
+    .console{width:100%; max-width:560px; margin:0 auto}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .halo,.track{animation:none}
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="brand" href="/" aria-label="Back to the Products Decoded Lab">
+    <svg width="30" height="24" viewBox="0 0 30 24" fill="none" aria-hidden="true">
+      <circle cx="11" cy="12" r="8" stroke="#ffb454" stroke-width="2"/>
+      <circle cx="19" cy="12" r="8" stroke="#53e0c8" stroke-width="2" opacity=".9"/>
+    </svg>
+    <b>PD LAB</b><small>· BACK TO INDEX</small>
+  </a>
+  <div class="pill st-idle" id="statusPill"><span class="dot"></span><span id="pillText">STANDBY</span></div>
+</header>
+
+<main class="stage">
+  <section class="chamber-col">
+    <div class="chamber" id="chamber">
+      <div class="halo"></div>
+      <canvas id="cv" width="600" height="600"></canvas>
+      <svg class="overlay" viewBox="0 0 600 600" aria-hidden="true">
+        <g id="ticks"></g>
+        <circle cx="300" cy="300" r="297" fill="none" stroke="rgba(120,150,175,.14)" stroke-width="3"/>
+        <circle id="gauge" cx="300" cy="300" r="297" fill="none" stroke="#53e0c8"
+                stroke-width="3" stroke-linecap="round" transform="rotate(-90 300 300)"/>
+      </svg>
+      <span class="anno a1">Ø 600 · WALL: ELASTIC</span>
+      <span class="anno a2">DISK Ø 14 · CAP 1400</span>
+    </div>
+  </section>
+
+  <aside class="console">
+    <div class="c-head"><span>CONTROL PANEL</span><span>UNIT A-12</span></div>
+    <p class="kicker">KINETIC GROWTH SIM</p>
+    <h1>COLLISION<br><em>CHAMBER</em></h1>
+    <p class="lede">Launch two disks. Every impact breeds a new one in a new color — the circle fills itself, collision by collision, until it can take no more.</p>
+
+    <div class="big-stat">
+      <span class="label">DISKS IN CHAMBER</span>
+      <span class="big" id="disks">0</span>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><span class="label">FILL</span><span class="val" id="fill">0.0%</span></div>
+      <div class="stat"><span class="label">IMPACTS</span><span class="val" id="impacts">0</span></div>
+      <div class="stat"><span class="label">RUN TIME</span><span class="val" id="time">00:00</span></div>
+    </div>
+
+    <div class="bar-row">
+      <span class="label">FILL</span>
+      <div class="bar"><i id="barFill"></i></div>
+      <span class="label end">FULL</span>
+    </div>
+
+    <div class="btns">
+      <button class="btn btn-start" id="startBtn"><span id="startLabel">▶ LAUNCH PAIR</span></button>
+      <button class="btn btn-reset" id="resetBtn">↺ RESET</button>
+    </div>
+
+    <p class="hint"><kbd>SPACE</kbd> launch <span>·</span> <kbd>R</kbd> reset <span>·</span> every impact spawns one disk</p>
+  </aside>
+</main>
+
+<footer class="ticker" aria-hidden="true">
+  <div class="track">
+    <span>IMPACT ⇒ NEW DISK ◆ FILL THE CIRCLE ◆ ELASTIC WALLS ◆ MAX 1400 DISKS ◆ TWO DISKS START IT ALL ◆ </span>
+    <span>IMPACT ⇒ NEW DISK ◆ FILL THE CIRCLE ◆ ELASTIC WALLS ◆ MAX 1400 DISKS ◆ TWO DISKS START IT ALL ◆ </span>
+  </div>
+</footer>
+
+<div class="err" id="err" hidden></div>
+
+<script>
+/* surface any error on screen so a failure is never silent again */
+const errBox = document.getElementById('err');
+function showErr(msg){
+  errBox.hidden = false;
+  errBox.textContent = '⚠ ' + msg;
+}
+window.addEventListener('error', e => showErr(e.message || 'Unknown error'));
+window.addEventListener('unhandledrejection', e => showErr(String(e.reason)));
+
+(() => {
+  const TAU = Math.PI * 2;
+  const canvas = document.getElementById('cv');
+  const ctx = canvas.getContext('2d');
+  if (!ctx) { showErr('Canvas 2D context is unavailable in this browser.'); return; }
+
+  const W = canvas.width, H = canvas.height, CX = W/2, CY = H/2;
+  const R = W/2 - 10;
+  const BALL_R = 7, DIAM = BALL_R*2, CELL = 20;
+  const MAX_BALLS = 1400;
+  const FULL = 0.78;
+  const REST = 0.99;
+  const SUBSTEPS = 2;
+  const SPAWN_CAP = 4;
+
+  const gauge = document.getElementById('gauge');
+  const CIRC = TAU * 297;
+  gauge.setAttribute('stroke-dasharray', CIRC);
+  gauge.style.strokeDashoffset = CIRC;
+
+  (() => {
+    let s = '';
+    for (let a = 0; a < 72; a++) {
+      const ang = a * TAU / 72, major = a % 6 === 0;
+      const r1 = major ? 271 : 278, r2 = 288;
+      s += `<line x1="${(CX+Math.cos(ang)*r1).toFixed(1)}" y1="${(CY+Math.sin(ang)*r1).toFixed(1)}"
+                   x2="${(CX+Math.cos(ang)*r2).toFixed(1)}" y2="${(CY+Math.sin(ang)*r2).toFixed(1)}"
+                   stroke="rgba(190,215,235,${major?0.30:0.13})" stroke-width="${major?1.5:1}"/>`;
+    }
+    document.getElementById('ticks').innerHTML = s;
+  })();
+
+  const els = {
+    disks:   document.getElementById('disks'),
+    fill:    document.getElementById('fill'),
+    impacts: document.getElementById('impacts'),
+    time:    document.getElementById('time'),
+    bar:     document.getElementById('barFill'),
+    pill:    document.getElementById('statusPill'),
+    pillTxt: document.getElementById('pillText'),
+    start:   document.getElementById('startBtn'),
+    startLb: document.getElementById('startLabel'),
+    reset:   document.getElementById('resetBtn'),
+    chamber: document.getElementById('chamber'),
+  };
+
+  let balls = [], sparks = [];
+  let impacts = 0, area = 0, glow = 0, runMs = 0;
+  let mode = 'idle', spawnedThisFrame = 0, solidNext = true;
+  let last = performance.now();
+  const cache = { d:-1, f:-1, i:-1, t:-1 };
+
+  const fillFrac = () => area / (R*R);
+  const shownPct = () => Math.min(100, fillFrac() / FULL * 100);
+
+  function spawn(x, y) {
+    const a  = Math.random() * TAU;
+    const sp = 1.8 + Math.random() * 1.4;
+    balls.push({ x, y, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp,
+                 hue:Math.random()*360, born:performance.now() - 60 });
+    area += BALL_R * BALL_R;
+    if (mode === 'running' && fillFrac() >= FULL) setMode('full');
+  }
+
+  function onImpact(x, y) {
+    impacts++;
+    glow = Math.min(1, glow + 0.22);
+    if (mode === 'running' && spawnedThisFrame < SPAWN_CAP &&
+        balls.length < MAX_BALLS && fillFrac() < FULL) {
+      spawnedThisFrame++;
+      spawn(x, y);
+    }
+    if (sparks.length < 90) sparks.push({ x, y, t:0, hue:Math.random()*360 });
+  }
+
+  function step(dt) {
+    const maxSp = 6, maxSp2 = maxSp*maxSp;
+    for (const b of balls) {
+      b.x += b.vx*dt; b.y += b.vy*dt;
+      const sp2 = b.vx*b.vx + b.vy*b.vy;
+      if (sp2 > maxSp2) { const k = maxSp/Math.sqrt(sp2); b.vx*=k; b.vy*=k; }
+      const dx = b.x-CX, dy = b.y-CY, d2 = dx*dx+dy*dy, md = R-BALL_R;
+      if (d2 > md*md) {
+        const d = Math.sqrt(d2), nx = dx/d, ny = dy/d;
+        b.x = CX + nx*md; b.y = CY + ny*md;
+        const dot = b.vx*nx + b.vy*ny;
+        if (dot > 0) { b.vx -= 2*dot*nx; b.vy -= 2*dot*ny; }
+      }
+    }
+    const grid = new Map();
+    for (let i = 0; i < balls.length; i++) {
+      const b = balls[i];
+      const k = (((b.x/CELL)|0)+8)*1024 + (((b.y/CELL)|0)+8);
+      let arr = grid.get(k);
+      if (!arr) { arr = []; grid.set(k, arr); }
+      arr.push(i);
+    }
+    for (let i = 0; i < balls.length; i++) {
+      const a = balls[i];
+      const ix = (a.x/CELL)|0, iy = (a.y/CELL)|0;
+      for (let gy = iy-1; gy <= iy+1; gy++)
+      for (let gx = ix-1; gx <= ix+1; gx++) {
+        const arr = grid.get((gx+8)*1024 + (gy+8));
+        if (!arr) continue;
+        for (const j of arr) {
+          if (j <= i) continue;
+          const b = balls[j];
+          const dx = b.x-a.x, dy = b.y-a.y;
+          if (dx > DIAM || dx < -DIAM || dy > DIAM || dy < -DIAM) continue;
+          const d2 = dx*dx + dy*dy;
+          if (d2 >= DIAM*DIAM || d2 < 1e-9) continue;
+          const d = Math.sqrt(d2), nx = dx/d, ny = dy/d;
+          const push = (DIAM - d - 0.02) * 0.5;
+          if (push > 0) { a.x-=nx*push; a.y-=ny*push; b.x+=nx*push; b.y+=ny*push; }
+          const dvn = (b.vx-a.vx)*nx + (b.vy-a.vy)*ny;
+          if (dvn < 0) {
+            const imp = -(1+REST)*dvn/2;
+            a.vx -= imp*nx; a.vy -= imp*ny;
+            b.vx += imp*nx; b.vy += imp*ny;
+            if (dvn < -0.05) onImpact((a.x+b.x)/2, (a.y+b.y)/2);
+          }
+        }
+      }
+    }
+  }
+
+  function draw(now) {
+    if (solidNext) { ctx.fillStyle = '#0a0f15'; ctx.fillRect(0,0,W,H); solidNext = false; }
+    else { ctx.fillStyle = 'rgba(9,13,19,0.5)'; ctx.fillRect(0,0,W,H); }
+
+    if (mode === 'idle') {
+      ctx.strokeStyle = 'rgba(140,170,195,0.25)';
+      ctx.lineWidth = 1; ctx.setLineDash([3,5]);
+      ctx.beginPath(); ctx.arc(CX-9, CY, 11, 0, TAU); ctx.stroke();
+      ctx.beginPath(); ctx.arc(CX+9, CY, 11, 0, TAU); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = 'rgba(140,170,195,0.3)';
+      ctx.beginPath(); ctx.arc(CX, CY, 1.5, 0, TAU); ctx.fill();
+    }
+
+    for (const b of balls) {
+      const t = Math.min(1, (now - b.born) / 160);
+      const s = 1 - Math.pow(1 - t, 3);
+      const rad = BALL_R * s;
+      if (rad <= 0.01) continue;
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, rad, 0, TAU);
+      ctx.fillStyle = 'hsl(' + b.hue.toFixed(0) + ',85%,58%)';
+      ctx.fill();
+    }
+
+    for (let i = sparks.length - 1; i >= 0; i--) {
+      const s = sparks[i]; s.t++;
+      if (s.t > 22) { sparks.splice(i,1); continue; }
+      const p = s.t / 22;
+      ctx.beginPath(); ctx.arc(s.x, s.y, 4 + p*16, 0, TAU);
+      ctx.strokeStyle = 'hsla(' + s.hue.toFixed(0) + ',90%,65%,' + ((1-p)*0.7).toFixed(3) + ')';
+      ctx.lineWidth = 1.5; ctx.stroke();
+    }
+
+    ctx.beginPath(); ctx.arc(CX, CY, R, 0, TAU);
+    ctx.strokeStyle = 'rgba(83,224,200,' + (0.16 + glow*0.4).toFixed(3) + ')';
+    ctx.lineWidth = 2; ctx.stroke();
+    glow *= 0.92;
+  }
+
+  function syncUI() {
+    const d = balls.length;
+    if (d !== cache.d) { cache.d = d; els.disks.textContent = d; }
+    const f = Math.round(shownPct()*10)/10;
+    if (f !== cache.f) {
+      cache.f = f;
+      els.fill.textContent = f.toFixed(1) + '%';
+      els.bar.style.width = f + '%';
+      gauge.style.strokeDashoffset = CIRC * (1 - f/100);
+    }
+    if (impacts !== cache.i) { cache.i = impacts; els.impacts.textContent = impacts.toLocaleString('en-US'); }
+    const sec = Math.floor(runMs / 1000);
+    if (sec !== cache.t) {
+      cache.t = sec;
+      els.time.textContent =
+        String(Math.floor(sec/60)).padStart(2,'0') + ':' + String(sec%60).padStart(2,'0');
+    }
+  }
+
+  function renderNow() { draw(performance.now()); syncUI(); }
+
+  const MODES = {
+    idle:    { pill:'STANDBY',      cls:'idle', btn:'▶ LAUNCH PAIR'   },
+    running: { pill:'RUNNING',      cls:'run',  btn:'● RUNNING…'      },
+    full:    { pill:'CHAMBER FULL', cls:'full', btn:'◼ CHAMBER FULL'  },
+  };
+  function setMode(m) {
+    mode = m;
+    const M = MODES[m];
+    els.pillTxt.textContent = M.pill;
+    els.pill.className = 'pill st-' + M.cls;
+    els.start.disabled = m !== 'idle';
+    els.startLb.textContent = M.btn;
+    els.chamber.classList.toggle('full', m === 'full');
+  }
+
+  function launch() {
+    if (mode === 'running' && balls.length === 0) setMode('idle'); // rescue stuck state
+    if (mode !== 'idle') return;
+    runMs = 0;
+    const a = Math.random() * TAU;
+    setMode('running');
+    spawn(CX + Math.cos(a)*6, CY + Math.sin(a)*6);
+    spawn(CX - Math.cos(a)*6, CY - Math.sin(a)*6);
+    renderNow(); // instant visual confirmation
+  }
+  function reset() {
+    balls = []; sparks = []; impacts = 0; area = 0; glow = 0; runMs = 0;
+    solidNext = true;
+    cache.d = cache.f = cache.i = cache.t = -1;
+    setMode('idle');
+    renderNow();
+  }
+
+  function frame(t) {
+    try {
+      const dt = Math.min(50, t - last); last = t;
+      if (mode === 'running' || (mode === 'full' && balls.length)) {
+        if (mode === 'running') runMs += dt;
+        spawnedThisFrame = 0;
+        const f = Math.min(2.5, Math.max(0.3, dt / 16.667));
+        const sdt = f / SUBSTEPS;
+        for (let s = 0; s < SUBSTEPS; s++) step(sdt);
+      }
+      draw(t);
+      syncUI();
+    } catch (err) {
+      showErr(err && err.message ? err.message : String(err));
+    }
+    requestAnimationFrame(frame); // loop always survives
+  }
+
+  els.start.addEventListener('click', launch);
+  els.reset.addEventListener('click', reset);
+  window.addEventListener('keydown', e => {
+    if (e.code === 'Space') { e.preventDefault(); launch(); }
+    else if (e.key === 'r' || e.key === 'R') reset();
+  });
+
+  setMode('idle');
+  renderNow();
+  requestAnimationFrame(frame);
+})();
+</script>
+<script defer src="/_vercel/insights/script.js"></script>
+</body>
+</html>

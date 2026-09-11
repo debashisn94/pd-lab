@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://lab.productsdecoded.com/</loc>
+    <lastmod>2026-09-12</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://lab.productsdecoded.com/t/collision-chamber/</loc>
+    <lastmod>2026-09-12</lastmod>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://lab.productsdecoded.com/about.html</loc>
+    <lastmod>2026-09-12</lastmod>
+    <priority>0.4</priority>
+  </url>
+  <url>
+    <loc>https://lab.productsdecoded.com/privacy.html</loc>
+    <lastmod>2026-09-12</lastmod>
+    <priority>0.2</priority>
+  </url>
+</urlset>
