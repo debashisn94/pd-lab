@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Maze — Products Decoded Lab</title>
+<meta name="description" content="Watch a maze dig itself out of a solid grid, one corridor at a time, then flood with light until it finds its own way out. A self-contained generator and solver that runs in your browser.">
+<link rel="canonical" href="https://lab.productsdecoded.com/t/maze/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Products Decoded — The Lab">
+<meta property="og:title" content="Maze">
+<meta property="og:description" content="A maze digs itself out of a solid grid, then floods with light until it finds its own way out.">
+<meta property="og:url" content="https://lab.productsdecoded.com/t/maze/">
+<meta property="og:image" content="https://lab.productsdecoded.com/og/maze.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><g stroke='%2360a5fa' stroke-width='2.6' fill='none'><path d='M4 4h24v24H4z'/><path d='M4 12h12M20 12h8M12 20h16M4 20h4M12 4v8M20 20v8'/></g></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#090d14; --panel:#10161f; --panel2:#0c1119;
+    --line:#1e2b3d; --ink:#e6edf6; --dim:#7d90a8;
+    --blue:#60a5fa; --blue2:#3b82f6; --gold:#fbbf24; --red:#ff6b5e;
+  }
+  *{box-sizing:border-box;margin:0}
+  html,body{height:100%}
+  body{
+    font-family:'IBM Plex Mono',monospace; color:var(--ink);
+    display:flex; flex-direction:column; min-height:100vh; overflow-x:hidden;
+    background:
+      radial-gradient(1000px 640px at 6% -12%, rgba(96,165,250,.09), transparent 60%),
+      radial-gradient(880px 620px at 104% 110%, rgba(251,191,36,.055), transparent 60%),
+      var(--bg);
+  }
+  body::before{
+    content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+    background-image:
+      linear-gradient(rgba(150,180,220,.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(150,180,220,.05) 1px, transparent 1px);
+    background-size:46px 46px;
+    -webkit-mask-image:radial-gradient(ellipse at 50% 45%, black 30%, transparent 78%);
+            mask-image:radial-gradient(ellipse at 50% 45%, black 30%, transparent 78%);
+  }
+  body::after{
+    content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+    background:radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,.42) 100%);
+  }
+  ::selection{background:rgba(96,165,250,.32)}
+
+  .topbar{
+    position:relative; z-index:2; flex:none;
+    display:flex; justify-content:space-between; align-items:center;
+    padding:14px clamp(18px,3vw,32px); border-bottom:1px solid var(--line);
+  }
+  .brand{display:flex; align-items:center; gap:11px; text-decoration:none; color:inherit; transition:opacity .2s}
+  .brand:hover{opacity:.7}
+  .brand:focus-visible{outline:2px solid var(--blue); outline-offset:4px; border-radius:6px}
+  .brand svg{display:block}
+  .brand b{font:700 12px 'Unbounded'; letter-spacing:.16em}
+  .brand small{font:500 10px 'IBM Plex Mono'; letter-spacing:.2em; color:var(--dim)}
+  .pill{
+    display:inline-flex; align-items:center; gap:8px;
+    font:500 10px 'IBM Plex Mono'; letter-spacing:.18em;
+    padding:7px 14px; border-radius:999px; border:1px solid var(--line); color:var(--dim);
+    transition:color .3s, border-color .3s;
+  }
+  .pill .dot{width:7px;height:7px;border-radius:50%;background:#4c5d75;transition:background .3s}
+  .pill.st-carve{border-color:rgba(96,165,250,.45);color:#bfdbfe}
+  .pill.st-carve .dot{background:var(--blue);box-shadow:0 0 8px var(--blue);animation:pulse 1.2s infinite}
+  .pill.st-flood{border-color:rgba(147,197,253,.5);color:#dbeafe}
+  .pill.st-flood .dot{background:#93c5fd;box-shadow:0 0 8px #93c5fd;animation:pulse .9s infinite}
+  .pill.st-paused{border-color:rgba(125,144,168,.45);color:#aebdd0}
+  .pill.st-done{border-color:rgba(251,191,36,.55);color:#fde68a}
+  .pill.st-done .dot{background:var(--gold);box-shadow:0 0 10px var(--gold)}
+  @keyframes pulse{50%{opacity:.3}}
+
+  .stage{
+    position:relative; z-index:1; flex:1;
+    display:grid; grid-template-columns:minmax(0,1fr) 390px;
+    gap:clamp(28px,4vw,64px); align-items:center;
+    width:100%; max-width:1300px; margin:0 auto;
+    padding:clamp(18px,3vh,36px) clamp(18px,4vw,48px);
+  }
+  .grid-col{display:flex; justify-content:center; min-width:0}
+  .gridbox{position:relative; width:min(100%,600px); aspect-ratio:1}
+  #cv{
+    position:absolute; inset:0; width:100%; height:100%; z-index:1;
+    border-radius:14px; border:1px solid var(--line); background:#060a10;
+  }
+  .gridbox::after{
+    content:''; position:absolute; inset:0; border-radius:14px; pointer-events:none; z-index:3;
+    box-shadow:inset 0 3px 22px rgba(255,255,255,.04), inset 0 -14px 44px rgba(0,0,0,.5), 0 30px 80px rgba(0,0,0,.55);
+  }
+  .anno{position:absolute; z-index:4; font:500 9.5px 'IBM Plex Mono'; letter-spacing:.1em; color:rgba(150,175,205,.55)}
+  .a1{top:-17px; left:2px} .a2{top:-17px; right:2px}
+
+  .console{
+    position:relative; overflow:hidden;
+    background:linear-gradient(180deg,var(--panel),var(--panel2));
+    border:1px solid var(--line); border-radius:12px;
+    padding:clamp(22px,3vw,32px);
+  }
+  .console::before{content:''; position:absolute; top:0; left:0; right:0; height:3px;
+    background:linear-gradient(90deg,var(--blue),var(--gold))}
+  .console::after{content:'04'; position:absolute; right:10px; top:-6px;
+    font:900 92px 'Unbounded'; color:rgba(255,255,255,.03); pointer-events:none}
+  .c-head{
+    display:flex; justify-content:space-between; padding-bottom:14px; margin-bottom:18px;
+    border-bottom:1px solid var(--line);
+    font:500 10px 'IBM Plex Mono'; letter-spacing:.24em; color:var(--dim);
+  }
+  .kicker{display:flex; align-items:center; gap:10px;
+    font:500 10px 'IBM Plex Mono'; letter-spacing:.28em; color:var(--gold)}
+  .kicker::before{content:''; width:22px; height:1px; background:var(--gold)}
+  h1{font:900 clamp(26px,2.5vw,36px)/1.08 'Unbounded'; letter-spacing:.01em; margin:14px 0 14px}
+  h1 em{font-style:normal; color:var(--blue)}
+  .lede{font:400 12.5px/1.7 'IBM Plex Mono'; color:var(--dim); max-width:42ch; margin-bottom:20px}
+
+  .big-stat{padding:2px 0 16px; border-bottom:1px solid var(--line)}
+  .label{display:block; font:500 10px 'IBM Plex Mono'; letter-spacing:.22em; color:var(--dim)}
+  .big{display:block; font:900 clamp(42px,4.2vw,56px)/1.1 'Unbounded';
+    font-variant-numeric:tabular-nums; margin-top:6px; transition:color .3s}
+  .big.done{color:var(--gold)}
+  .stats{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; padding:16px 0 14px}
+  .stat{border:1px solid var(--line); border-radius:7px; padding:9px 11px; background:rgba(6,10,16,.55)}
+  .val{display:block; font:600 15px 'IBM Plex Mono'; color:#cddcee; margin-top:4px; font-variant-numeric:tabular-nums}
+
+  .bar-row{display:flex; align-items:center; gap:12px; margin-bottom:18px}
+  .bar{flex:1; height:10px; border:1px solid var(--line); background:#060a10; position:relative; overflow:hidden}
+  .bar i{display:block; height:100%; width:0%;
+    background:linear-gradient(90deg,var(--blue),var(--gold)); transition:width .2s linear}
+  .bar::after{content:''; position:absolute; inset:0;
+    background:repeating-linear-gradient(90deg, transparent 0 9px, rgba(6,10,16,.8) 9px 10px)}
+  .bar-row .end{text-align:right}
+
+  .rate{padding:2px 0 20px}
+  .rate-head{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:11px}
+  .rate-head b{font:600 13px 'IBM Plex Mono'; color:#cddcee; font-variant-numeric:tabular-nums}
+  input[type=range]{
+    -webkit-appearance:none; appearance:none; width:100%; height:4px; border-radius:4px;
+    background:linear-gradient(90deg,var(--blue) 0%, var(--blue) var(--pct,35%), #1b2735 var(--pct,35%), #1b2735 100%);
+    outline:none; cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; appearance:none; width:17px; height:17px; border-radius:50%;
+    background:#eff6ff; border:3px solid var(--blue2); cursor:pointer;
+    box-shadow:0 2px 8px rgba(0,0,0,.5);
+  }
+  input[type=range]::-moz-range-thumb{
+    width:17px; height:17px; border-radius:50%; border:3px solid var(--blue2);
+    background:#eff6ff; cursor:pointer;
+  }
+  input[type=range]:focus-visible{outline:2px solid var(--gold); outline-offset:4px}
+
+  .btns{display:flex; gap:12px; margin-bottom:16px}
+  .btn{
+    font:700 13px 'Unbounded'; letter-spacing:.1em; border:none; border-radius:9px;
+    padding:17px 14px; cursor:pointer; user-select:none;
+    transition:transform .15s ease, box-shadow .15s ease, background .2s ease, color .2s ease;
+  }
+  .btn:focus-visible{outline:2px solid var(--gold); outline-offset:3px}
+  .btn-start{
+    flex:1.55; color:#062040;
+    background:linear-gradient(180deg,#a5ccff,var(--blue2));
+    box-shadow:0 5px 0 #1e4b96, 0 14px 30px rgba(59,130,246,.24);
+  }
+  .btn-start:hover:not(:disabled){transform:translateY(-2px);
+    box-shadow:0 7px 0 #1e4b96, 0 18px 34px rgba(59,130,246,.32)}
+  .btn-start:active:not(:disabled){transform:translateY(3px); box-shadow:0 2px 0 #1e4b96}
+  .btn-reset{
+    flex:1; color:#ff8d82; background:rgba(255,107,94,.05);
+    border:1px solid rgba(255,107,94,.55); box-shadow:0 5px 0 rgba(255,107,94,.18);
+  }
+  .btn-reset:hover{background:rgba(255,107,94,.14); transform:translateY(-2px);
+    box-shadow:0 7px 0 rgba(255,107,94,.22)}
+  .btn-reset:active{transform:translateY(3px); box-shadow:0 1px 0 rgba(255,107,94,.18)}
+  .hint{font:400 11px 'IBM Plex Mono'; color:var(--dim); letter-spacing:.04em}
+  kbd{font:600 9.5px 'IBM Plex Mono'; border:1px solid var(--line); border-bottom-width:2px;
+    border-radius:5px; padding:2px 7px; background:#060a10; color:#a3b6cc}
+  .hint span{color:#3a4a5e}
+
+  .ticker{position:relative; z-index:2; flex:none; overflow:hidden;
+    border-top:1px solid var(--line); background:#060a10; padding:9px 0}
+  .track{display:inline-flex; white-space:nowrap; animation:tick 34s linear infinite; will-change:transform}
+  .ticker:hover .track{animation-play-state:paused}
+  .track span{font:500 10px/1 'IBM Plex Mono'; letter-spacing:.24em; color:rgba(130,160,190,.5); padding-right:56px}
+  @keyframes tick{to{transform:translateX(-50%)}}
+
+  .err{
+    position:fixed; left:16px; bottom:16px; z-index:50; max-width:70vw;
+    font:500 12px/1.5 'IBM Plex Mono'; color:#ffb4ad; background:rgba(52,14,10,.94);
+    border:1px solid rgba(255,107,94,.6); border-radius:8px; padding:10px 14px;
+    box-shadow:0 8px 30px rgba(0,0,0,.5);
+  }
+
+  @media (max-width:1020px){
+    .stage{grid-template-columns:1fr; gap:44px}
+    .console{width:100%; max-width:560px; margin:0 auto}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .track{animation:none}
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="brand" href="/" aria-label="Back to the Products Decoded Lab">
+    <svg width="30" height="24" viewBox="0 0 30 24" fill="none" aria-hidden="true">
+      <circle cx="11" cy="12" r="8" stroke="#60a5fa" stroke-width="2"/>
+      <circle cx="19" cy="12" r="8" stroke="#fbbf24" stroke-width="2" opacity=".9"/>
+    </svg>
+    <b>PD LAB</b><small>· BACK TO INDEX</small>
+  </a>
+  <div class="pill st-idle" id="statusPill"><span class="dot"></span><span id="pillText">STANDBY</span></div>
+</header>
+
+<main class="stage">
+  <section class="grid-col">
+    <div class="gridbox" id="gridbox">
+      <span class="anno a1">33 × 33 · 1,089 CELLS</span>
+      <span class="anno a2">EXACTLY ONE ROUTE BETWEEN ANY TWO CELLS</span>
+      <canvas id="cv" width="660" height="660"></canvas>
+    </div>
+  </section>
+
+  <aside class="console">
+    <div class="c-head"><span>CONTROL PANEL</span><span>UNIT D-11</span></div>
+    <p class="kicker">DIGS ITSELF OUT</p>
+    <h1>THE<br><em>MAZE</em></h1>
+    <p class="lede">It starts as a solid block. A single digger tunnels through it, backing up every time it runs out of room — and when the last cell is reached, light floods in from the corner and finds the only way out.</p>
+
+    <div class="big-stat">
+      <span class="label" id="bigLabel">CELLS CARVED</span>
+      <span class="big" id="bigVal">0</span>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><span class="label">WALLS</span><span class="val" id="walls">0</span></div>
+      <div class="stat"><span class="label">DEAD ENDS</span><span class="val" id="dead">—</span></div>
+      <div class="stat"><span class="label">SOLUTION</span><span class="val" id="path">—</span></div>
+    </div>
+
+    <div class="bar-row">
+      <span class="label" id="barFrom">SOLID</span>
+      <div class="bar"><i id="barFill"></i></div>
+      <span class="label end" id="barTo">CARVED</span>
+    </div>
+
+    <div class="rate">
+      <div class="rate-head">
+        <span class="label">SPEED</span>
+        <b><span id="speedVal">12</span> cells / frame</b>
+      </div>
+      <input type="range" id="speed" min="0" max="100" value="42" aria-label="Cells processed per frame">
+    </div>
+
+    <div class="btns">
+      <button class="btn btn-start" id="startBtn"><span id="startLabel">▶ DIG</span></button>
+      <button class="btn btn-reset" id="resetBtn">↺ RESET</button>
+    </div>
+
+    <p class="hint"><kbd>SPACE</kbd> dig / pause <span>·</span> <kbd>R</kbd> new maze <span>·</span> every maze is different, none has a loop</p>
+  </aside>
+</main>
+
+<footer class="ticker" aria-hidden="true">
+  <div class="track">
+    <span>1,089 CELLS ◆ 1,088 WALLS COME DOWN ◆ NO LOOPS ◆ NO ISLANDS ◆ EXACTLY ONE ROUTE BETWEEN ANY TWO CELLS ◆ DEPTH-FIRST DIG, BREADTH-FIRST SOLVE ◆ </span>
+    <span>1,089 CELLS ◆ 1,088 WALLS COME DOWN ◆ NO LOOPS ◆ NO ISLANDS ◆ EXACTLY ONE ROUTE BETWEEN ANY TWO CELLS ◆ DEPTH-FIRST DIG, BREADTH-FIRST SOLVE ◆ </span>
+  </div>
+</footer>
+
+<div class="err" id="err" hidden></div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ── grid ──────────────────────────────────────────────────────────
+  const W = 660, H = 660;
+  const COLS = 33, ROWS = 33, CELLS = COLS * ROWS;
+  const CELL = 19;
+  const OX = (W - COLS * CELL) / 2, OY = (H - ROWS * CELL) / 2;
+  const START = 0, GOAL = CELLS - 1;
+
+  // wall bits, and the offset each direction moves by
+  const N = 1, E = 2, S = 4, WST = 8;
+  const DIRS = [
+    { bit: N,   opp: S,   dx:  0, dy: -1 },
+    { bit: E,   opp: WST, dx:  1, dy:  0 },
+    { bit: S,   opp: N,   dx:  0, dy:  1 },
+    { bit: WST, opp: E,   dx: -1, dy:  0 }
+  ];
+
+  const TAU = Math.PI * 2;
+  const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+  const cx = (i) => OX + (i % COLS) * CELL;
+  const cy = (i) => OY + ((i / COLS) | 0) * CELL;
+  const mid = (i) => ({ x: cx(i) + CELL / 2, y: cy(i) + CELL / 2 });
+
+  // ── state ─────────────────────────────────────────────────────────
+  const cv = document.getElementById('cv');
+  const ctx = cv.getContext('2d');
+
+  let walls, seen, stack, carved, wallsDown;
+  let dist, prev, queue, qHead, flooded, maxDist;
+  let path, traced, deadEnds, searched;
+  let phase = 'idle', prevPhase = 'idle', speed = 12;
+
+  const els = {
+    pill: document.getElementById('statusPill'),
+    pillTxt: document.getElementById('pillText'),
+    bigLabel: document.getElementById('bigLabel'),
+    bigVal: document.getElementById('bigVal'),
+    walls: document.getElementById('walls'),
+    dead: document.getElementById('dead'),
+    path: document.getElementById('path'),
+    barFill: document.getElementById('barFill'),
+    barFrom: document.getElementById('barFrom'),
+    barTo: document.getElementById('barTo'),
+    speed: document.getElementById('speed'),
+    speedVal: document.getElementById('speedVal'),
+    start: document.getElementById('startBtn'),
+    startLb: document.getElementById('startLabel'),
+    reset: document.getElementById('resetBtn'),
+    err: document.getElementById('err')
+  };
+
+  function showErr(msg) { els.err.hidden = false; els.err.textContent = '⚠ ' + msg; }
+
+  // ── build ─────────────────────────────────────────────────────────
+  function init() {
+    walls = new Uint8Array(CELLS).fill(15);   // every cell starts fully boxed in
+    seen = new Uint8Array(CELLS);
+    stack = [START];
+    seen[START] = 1;
+    carved = 1; wallsDown = 0;
+
+    dist = new Int32Array(CELLS).fill(-1);
+    prev = new Int32Array(CELLS).fill(-1);
+    queue = []; qHead = 0; flooded = 0; maxDist = 1;
+    path = []; traced = 0; deadEnds = -1; searched = -1;
+  }
+
+  // ── dig: depth-first with backtracking ───────────────────────────
+  // Every cell is entered exactly once, so the corridors form a spanning
+  // tree: no loops, no islands, exactly one route between any two cells.
+  function digStep() {
+    if (!stack.length) { startFlood(); return; }
+    const cur = stack[stack.length - 1];
+    const x = cur % COLS, y = (cur / COLS) | 0;
+
+    const open = [];
+    for (let d = 0; d < 4; d++) {
+      const nx = x + DIRS[d].dx, ny = y + DIRS[d].dy;
+      if (nx < 0 || ny < 0 || nx >= COLS || ny >= ROWS) continue;
+      const ni = ny * COLS + nx;
+      if (!seen[ni]) open.push(d);
+    }
+
+    if (!open.length) { stack.pop(); return; }
+
+    const d = open[(Math.random() * open.length) | 0];
+    const ni = cur + DIRS[d].dy * COLS + DIRS[d].dx;
+    walls[cur] &= ~DIRS[d].bit;
+    walls[ni] &= ~DIRS[d].opp;
+    wallsDown++;
+    seen[ni] = 1; carved++;
+    stack.push(ni);
+  }
+
+  function countDeadEnds() {
+    let n = 0;
+    for (let i = 0; i < CELLS; i++) {
+      let w = walls[i], c = 0;
+      while (w) { c += w & 1; w >>= 1; }
+      if (c === 3) n++;                       // boxed in on three sides
+    }
+    return n;
+  }
+
+  // ── solve: breadth-first, so the first route found is the shortest ─
+  function startFlood() {
+    deadEnds = countDeadEnds();
+    queue = [START]; qHead = 0;
+    dist[START] = 0; flooded = 1;
+    setPhase('flood');
+  }
+
+  function floodStep() {
+    if (qHead >= queue.length) { buildPath(); return; }
+    const cur = queue[qHead++];
+    if (cur === GOAL && searched < 0) searched = flooded;   // where the exit turned up
+    for (let d = 0; d < 4; d++) {
+      if (walls[cur] & DIRS[d].bit) continue;          // wall still standing
+      const ni = cur + DIRS[d].dy * COLS + DIRS[d].dx;
+      if (ni < 0 || ni >= CELLS || dist[ni] !== -1) continue;
+      dist[ni] = dist[cur] + 1;
+      prev[ni] = cur;
+      if (dist[ni] > maxDist) maxDist = dist[ni];
+      queue.push(ni);
+      flooded++;
+    }
+  }
+
+  function buildPath() {
+    path = [];
+    let c = GOAL;
+    while (c !== -1) { path.push(c); c = prev[c]; }
+    path.reverse();
+    traced = 0;
+    setPhase('trace');
+  }
+
+  // ── draw ──────────────────────────────────────────────────────────
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+
+    // flooded cells, shaded by how far the light has travelled
+    if (phase === 'flood' || phase === 'trace' || phase === 'done') {
+      for (let i = 0; i < CELLS; i++) {
+        if (dist[i] < 0) continue;
+        const t = dist[i] / maxDist;
+        ctx.fillStyle = 'hsl(214 86% ' + (8 + t * 21).toFixed(1) + '%)';
+        ctx.fillRect(cx(i), cy(i), CELL, CELL);
+      }
+    } else {
+      // cells the digger has reached
+      ctx.fillStyle = 'rgba(59,130,246,.13)';
+      for (let i = 0; i < CELLS; i++) if (seen[i]) ctx.fillRect(cx(i), cy(i), CELL, CELL);
+      // the corridor it is currently standing in
+      ctx.fillStyle = 'rgba(96,165,250,.22)';
+      for (let k = 0; k < stack.length; k++) ctx.fillRect(cx(stack[k]), cy(stack[k]), CELL, CELL);
+    }
+
+    // walls — one pass for every cell's north and west edge, then the far borders
+    ctx.beginPath();
+    for (let i = 0; i < CELLS; i++) {
+      const x = cx(i), y = cy(i);
+      if (walls[i] & N)   { ctx.moveTo(x, y);        ctx.lineTo(x + CELL, y); }
+      if (walls[i] & WST) { ctx.moveTo(x, y);        ctx.lineTo(x, y + CELL); }
+    }
+    ctx.moveTo(OX + COLS * CELL, OY); ctx.lineTo(OX + COLS * CELL, OY + ROWS * CELL);
+    ctx.moveTo(OX, OY + ROWS * CELL); ctx.lineTo(OX + COLS * CELL, OY + ROWS * CELL);
+    ctx.strokeStyle = 'rgba(186,214,246,.52)';
+    ctx.lineWidth = 1.5;
+    ctx.lineCap = 'square';
+    ctx.stroke();
+
+    // the solution, drawn on as it is traced
+    if (path.length && traced > 1) {
+      ctx.beginPath();
+      const p0 = mid(path[0]);
+      ctx.moveTo(p0.x, p0.y);
+      for (let k = 1; k < traced; k++) { const p = mid(path[k]); ctx.lineTo(p.x, p.y); }
+      ctx.strokeStyle = 'rgba(251,191,36,.95)';
+      ctx.lineWidth = 4.5;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(251,191,36,.22)';
+      ctx.lineWidth = 11;
+      ctx.stroke();
+    }
+
+    // the digger
+    if (phase === 'dig' && stack.length) {
+      const p = mid(stack[stack.length - 1]);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, CELL * 0.30, 0, TAU);
+      ctx.fillStyle = '#dbeafe';
+      ctx.fill();
+    }
+
+    // entrance and exit markers
+    const a = mid(START), b = mid(GOAL);
+    ctx.fillStyle = 'rgba(96,165,250,.9)';
+    ctx.fillRect(a.x - 3, a.y - 3, 6, 6);
+    ctx.fillStyle = phase === 'done' ? 'rgba(251,191,36,1)' : 'rgba(251,191,36,.55)';
+    ctx.fillRect(b.x - 3, b.y - 3, 6, 6);
+  }
+
+  // ── UI ────────────────────────────────────────────────────────────
+  const PHASES = {
+    idle:   { pill: 'STANDBY',  cls: 'idle',   btn: '▶ DIG' },
+    dig:    { pill: 'DIGGING',  cls: 'carve',  btn: '⏸ PAUSE' },
+    flood:  { pill: 'FLOODING', cls: 'flood',  btn: '⏸ PAUSE' },
+    trace:  { pill: 'FLOODING', cls: 'flood',  btn: '⏸ PAUSE' },
+    paused: { pill: 'PAUSED',   cls: 'paused', btn: '▶ RESUME' },
+    done:   { pill: 'SOLVED',   cls: 'done',   btn: '↺ DIG AGAIN' }
+  };
+
+  function setPhase(p) {
+    if (p === 'paused') prevPhase = phase;
+    phase = p;
+    const P = PHASES[p];
+    els.pillTxt.textContent = P.pill;
+    els.pill.className = 'pill st-' + P.cls;
+    els.startLb.textContent = P.btn;
+    els.bigVal.classList.toggle('done', p === 'done');
+
+    if (p === 'dig' || p === 'idle') {
+      els.bigLabel.textContent = 'CELLS CARVED';
+      els.barFrom.textContent = 'SOLID'; els.barTo.textContent = 'CARVED';
+    } else if (p === 'flood' || p === 'trace') {
+      els.bigLabel.textContent = 'CELLS REACHED';
+      els.barFrom.textContent = 'DARK'; els.barTo.textContent = 'FOUND';
+    } else if (p === 'done') {
+      els.bigLabel.textContent = 'STEPS TO THE EXIT';
+      els.barFrom.textContent = 'DARK'; els.barTo.textContent = 'FOUND';
+    }
+  }
+
+  function syncUI() {
+    let big, frac;
+    if (phase === 'flood' || phase === 'trace') {
+      big = flooded; frac = flooded / CELLS;
+    } else if (phase === 'done') {
+      big = path.length - 1; frac = 1;
+    } else {
+      big = carved; frac = carved / CELLS;
+    }
+    els.bigVal.textContent = big.toLocaleString('en-US');
+    els.walls.textContent = wallsDown.toLocaleString('en-US');
+    els.dead.textContent = deadEnds < 0 ? '—' : deadEnds.toLocaleString('en-US');
+    els.path.textContent = path.length ? (path.length - 1).toLocaleString('en-US') : '—';
+    els.barFill.style.width = (clamp(frac, 0, 1) * 100).toFixed(1) + '%';
+  }
+
+  function toggle() {
+    if (phase === 'idle') setPhase('dig');
+    else if (phase === 'paused') setPhase(prevPhase);
+    else if (phase === 'done') reset(true);
+    else setPhase('paused');
+  }
+
+  function reset(andStart) {
+    init();
+    setPhase(andStart ? 'dig' : 'idle');
+    draw(); syncUI();
+  }
+
+  function applySpeed() {
+    const v = +els.speed.value;                        // 0..100
+    speed = Math.max(1, Math.round(Math.pow(10, v / 100 * 2.0)));   // 1 .. 100
+    els.speedVal.textContent = speed;
+    els.speed.style.setProperty('--pct', v + '%');
+  }
+
+  function frame() {
+    try {
+      if (phase === 'dig')        for (let k = 0; k < speed && phase === 'dig'; k++) digStep();
+      else if (phase === 'flood') for (let k = 0; k < speed && phase === 'flood'; k++) floodStep();
+      else if (phase === 'trace') {
+        traced = Math.min(path.length, traced + Math.max(1, (speed / 4) | 0));
+        if (traced >= path.length) setPhase('done');
+      }
+      draw();
+      syncUI();
+    } catch (err) {
+      showErr(err && err.message ? err.message : String(err));
+    }
+    requestAnimationFrame(frame);   // loop always survives
+  }
+
+  els.start.addEventListener('click', toggle);
+  els.reset.addEventListener('click', () => reset(false));
+  els.speed.addEventListener('input', applySpeed);
+  window.addEventListener('keydown', e => {
+    if (e.target && e.target.tagName === 'INPUT') return;
+    if (e.code === 'Space') { e.preventDefault(); toggle(); }
+    else if (e.key === 'r' || e.key === 'R') reset(false);
+  });
+
+  applySpeed();
+  reset(false);
+  requestAnimationFrame(frame);
+})();
+</script>
+<script defer src="/_vercel/insights/script.js"></script>
+</body>
+</html>
