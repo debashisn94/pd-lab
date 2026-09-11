@@ -201,7 +201,39 @@
   @media (prefers-reduced-motion:reduce){
     .track{animation:none}
   }
+
+  /* Embed mode. `?embed=1` strips the chrome so an experiment can be dropped
+     into an iframe on another page and still be played. The selectors are
+     structural (.stage > section > div) rather than per-toy class names, so
+     this block is byte-identical in every experiment -- the thumbnail tool
+     learned the hard way that per-toy class lists rot the moment a new toy
+     picks a new wrapper name. */
+  html.embed, html.embed body{height:100%; overflow:hidden}
+  html.embed .topbar, html.embed .ticker, html.embed .console,
+  html.embed .anno, html.embed .err{display:none !important}
+  html.embed .stage{
+    display:grid; place-items:center; grid-template-columns:1fr;
+    width:100%; height:100vh; max-width:none; padding:12px; gap:0;
+  }
+  html.embed .stage > section{display:grid; place-items:center; width:100%; height:100%; min-width:0}
+  html.embed .stage > section > div{
+    width:auto !important; height:100% !important;
+    max-width:100% !important; max-height:100% !important;
+  }
+  html.embed .embed-out{display:inline-flex}
+  .embed-out{
+    display:none; position:fixed; right:10px; bottom:10px; z-index:40;
+    align-items:center; gap:6px; text-decoration:none;
+    font:500 9.5px 'IBM Plex Mono', monospace; letter-spacing:.16em; text-transform:uppercase;
+    color:rgba(255,255,255,.62); background:rgba(0,0,0,.5);
+    border:1px solid rgba(255,255,255,.16); border-radius:999px; padding:6px 11px;
+    backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px);
+    transition:color .2s ease, border-color .2s ease;
+  }
+  .embed-out:hover{color:#fff; border-color:rgba(255,255,255,.42)}
 </style>
+<script>/* set before paint so embed mode never flashes the full chrome */
+if (/[?&]embed(=|&|$)/.test(location.search)) document.documentElement.classList.add('embed');</script>
 </head>
 <body>
 
@@ -579,6 +611,7 @@
   requestAnimationFrame(frame);
 })();
 </script>
+<a class="embed-out" href="/t/maze/" target="_blank" rel="noopener">Open in the Lab ↗</a>
 <script defer src="/_vercel/insights/script.js"></script>
 </body>
 </html>
