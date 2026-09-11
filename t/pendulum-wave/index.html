@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pendulum Wave — Products Decoded Lab</title>
+<meta name="description" content="Sixteen pendulums, each one swinging at a slightly different rate. They fall out of step into snakes and braids, then every thirty seconds they snap back into a single line. A self-contained motion toy that runs in your browser.">
+<link rel="canonical" href="https://lab.productsdecoded.com/t/pendulum-wave/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Products Decoded — The Lab">
+<meta property="og:title" content="Pendulum Wave">
+<meta property="og:description" content="Sixteen pendulums drift out of step into snakes and braids — then snap back into one line, every thirty seconds.">
+<meta property="og:url" content="https://lab.productsdecoded.com/t/pendulum-wave/">
+<meta property="og:image" content="https://lab.productsdecoded.com/og/pendulum-wave.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><path d='M3 5h26' stroke='%23fb7185' stroke-width='2'/><circle cx='7' cy='14' r='3' fill='%2334d399'/><circle cx='14' cy='19' r='3' fill='%236ee7b7'/><circle cx='21' cy='24' r='3' fill='%23fda4af'/><circle cx='28' cy='17' r='3' fill='%23fb7185'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a1310; --panel:#122019; --panel2:#0e1a15;
+    --line:#233a30; --ink:#e9f4ee; --dim:#7fa090;
+    --emerald:#34d399; --emerald2:#10b981; --rose:#fb7185; --red:#ff6b5e;
+  }
+  *{box-sizing:border-box;margin:0}
+  html,body{height:100%}
+  body{
+    font-family:'IBM Plex Mono',monospace; color:var(--ink);
+    display:flex; flex-direction:column; min-height:100vh; overflow-x:hidden;
+    background:
+      radial-gradient(1000px 640px at 6% -12%, rgba(52,211,153,.08), transparent 60%),
+      radial-gradient(880px 620px at 104% 110%, rgba(251,113,133,.06), transparent 60%),
+      var(--bg);
+  }
+  body::before{
+    content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+    background-image:
+      linear-gradient(rgba(150,210,180,.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(150,210,180,.05) 1px, transparent 1px);
+    background-size:46px 46px;
+    -webkit-mask-image:radial-gradient(ellipse at 50% 45%, black 30%, transparent 78%);
+            mask-image:radial-gradient(ellipse at 50% 45%, black 30%, transparent 78%);
+  }
+  body::after{
+    content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+    background:radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,.4) 100%);
+  }
+  ::selection{background:rgba(52,211,153,.32)}
+
+  .topbar{
+    position:relative; z-index:2; flex:none;
+    display:flex; justify-content:space-between; align-items:center;
+    padding:14px clamp(18px,3vw,32px); border-bottom:1px solid var(--line);
+  }
+  .brand{display:flex; align-items:center; gap:11px; text-decoration:none; color:inherit; transition:opacity .2s}
+  .brand:hover{opacity:.7}
+  .brand:focus-visible{outline:2px solid var(--emerald); outline-offset:4px; border-radius:6px}
+  .brand svg{display:block}
+  .brand b{font:700 12px 'Unbounded'; letter-spacing:.16em}
+  .brand small{font:500 10px 'IBM Plex Mono'; letter-spacing:.2em; color:var(--dim)}
+  .pill{
+    display:inline-flex; align-items:center; gap:8px;
+    font:500 10px 'IBM Plex Mono'; letter-spacing:.18em;
+    padding:7px 14px; border-radius:999px; border:1px solid var(--line); color:var(--dim);
+    transition:color .3s, border-color .3s;
+  }
+  .pill .dot{width:7px;height:7px;border-radius:50%;background:#50705f;transition:background .3s}
+  .pill.st-run{border-color:rgba(52,211,153,.45);color:#a7f3d0}
+  .pill.st-run .dot{background:var(--emerald);box-shadow:0 0 8px var(--emerald);animation:pulse 1.2s infinite}
+  .pill.st-paused{border-color:rgba(127,160,144,.45);color:#b2cabe}
+  .pill.st-sync{border-color:rgba(251,113,133,.55);color:#ffc2ca}
+  .pill.st-sync .dot{background:var(--rose);box-shadow:0 0 10px var(--rose)}
+  @keyframes pulse{50%{opacity:.3}}
+
+  .stage{
+    position:relative; z-index:1; flex:1;
+    display:grid; grid-template-columns:minmax(0,1fr) 390px;
+    gap:clamp(28px,4vw,64px); align-items:center;
+    width:100%; max-width:1340px; margin:0 auto;
+    padding:clamp(18px,3vh,36px) clamp(18px,4vw,48px);
+  }
+  .rig-col{display:flex; justify-content:center; min-width:0}
+  .rig{position:relative; width:min(100%,700px); aspect-ratio:720/620}
+  #cv{
+    position:absolute; inset:0; width:100%; height:100%; z-index:1;
+    border-radius:14px; border:1px solid var(--line); background:#07100c;
+  }
+  .rig::after{
+    content:''; position:absolute; inset:0; border-radius:14px; pointer-events:none; z-index:3;
+    box-shadow:inset 0 3px 22px rgba(255,255,255,.04), inset 0 -14px 44px rgba(0,0,0,.5), 0 30px 80px rgba(0,0,0,.55);
+  }
+  .anno{position:absolute; z-index:4; font:500 9.5px 'IBM Plex Mono'; letter-spacing:.1em; color:rgba(150,190,170,.55)}
+  .a1{top:11px; left:16px} .a2{top:11px; right:16px}
+
+  .console{
+    position:relative; overflow:hidden;
+    background:linear-gradient(180deg,var(--panel),var(--panel2));
+    border:1px solid var(--line); border-radius:12px;
+    padding:clamp(22px,3vw,32px);
+  }
+  .console::before{content:''; position:absolute; top:0; left:0; right:0; height:3px;
+    background:linear-gradient(90deg,var(--emerald),var(--rose))}
+  .console::after{content:'03'; position:absolute; right:10px; top:-6px;
+    font:900 92px 'Unbounded'; color:rgba(255,255,255,.03); pointer-events:none}
+  .c-head{
+    display:flex; justify-content:space-between; padding-bottom:14px; margin-bottom:18px;
+    border-bottom:1px solid var(--line);
+    font:500 10px 'IBM Plex Mono'; letter-spacing:.24em; color:var(--dim);
+  }
+  .kicker{display:flex; align-items:center; gap:10px;
+    font:500 10px 'IBM Plex Mono'; letter-spacing:.28em; color:var(--rose)}
+  .kicker::before{content:''; width:22px; height:1px; background:var(--rose)}
+  h1{font:900 clamp(26px,2.5vw,36px)/1.08 'Unbounded'; letter-spacing:.01em; margin:14px 0 14px}
+  h1 em{font-style:normal; color:var(--emerald)}
+  .lede{font:400 12.5px/1.7 'IBM Plex Mono'; color:var(--dim); max-width:42ch; margin-bottom:20px}
+
+  .big-stat{padding:2px 0 16px; border-bottom:1px solid var(--line)}
+  .label{display:block; font:500 10px 'IBM Plex Mono'; letter-spacing:.22em; color:var(--dim)}
+  .big{display:block; font:900 clamp(42px,4.2vw,56px)/1.1 'Unbounded';
+    font-variant-numeric:tabular-nums; margin-top:6px; transition:color .3s}
+  .big.sync{color:var(--rose)}
+  .stats{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; padding:16px 0 14px}
+  .stat{border:1px solid var(--line); border-radius:7px; padding:9px 11px; background:rgba(7,16,12,.55)}
+  .val{display:block; font:600 15px 'IBM Plex Mono'; color:#cfe8dc; margin-top:4px; font-variant-numeric:tabular-nums}
+
+  .bar-row{display:flex; align-items:center; gap:12px; margin-bottom:18px}
+  .bar{flex:1; height:10px; border:1px solid var(--line); background:#07100c; position:relative; overflow:hidden}
+  .bar i{display:block; height:100%; width:0%;
+    background:linear-gradient(90deg,var(--emerald),var(--rose))}
+  .bar::after{content:''; position:absolute; inset:0;
+    background:repeating-linear-gradient(90deg, transparent 0 9px, rgba(7,16,12,.8) 9px 10px)}
+  .bar-row .end{text-align:right}
+
+  .rate{padding:2px 0 20px}
+  .rate-head{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:11px}
+  .rate-head b{font:600 13px 'IBM Plex Mono'; color:#cfe8dc; font-variant-numeric:tabular-nums}
+  input[type=range]{
+    -webkit-appearance:none; appearance:none; width:100%; height:4px; border-radius:4px;
+    background:linear-gradient(90deg,var(--emerald) 0%, var(--emerald) var(--pct,50%), #1d3329 var(--pct,50%), #1d3329 100%);
+    outline:none; cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; appearance:none; width:17px; height:17px; border-radius:50%;
+    background:#eefdf5; border:3px solid var(--emerald2); cursor:pointer;
+    box-shadow:0 2px 8px rgba(0,0,0,.5);
+  }
+  input[type=range]::-moz-range-thumb{
+    width:17px; height:17px; border-radius:50%; border:3px solid var(--emerald2);
+    background:#eefdf5; cursor:pointer;
+  }
+  input[type=range]:focus-visible{outline:2px solid var(--rose); outline-offset:4px}
+
+  .btns{display:flex; gap:12px; margin-bottom:16px}
+  .btn{
+    font:700 13px 'Unbounded'; letter-spacing:.1em; border:none; border-radius:9px;
+    padding:17px 14px; cursor:pointer; user-select:none;
+    transition:transform .15s ease, box-shadow .15s ease, background .2s ease, color .2s ease;
+  }
+  .btn:focus-visible{outline:2px solid var(--rose); outline-offset:3px}
+  .btn-start{
+    flex:1.55; color:#04281b;
+    background:linear-gradient(180deg,#7ff0c4,var(--emerald2));
+    box-shadow:0 5px 0 #0a6b4b, 0 14px 30px rgba(16,185,129,.24);
+  }
+  .btn-start:hover:not(:disabled){transform:translateY(-2px);
+    box-shadow:0 7px 0 #0a6b4b, 0 18px 34px rgba(16,185,129,.32)}
+  .btn-start:active:not(:disabled){transform:translateY(3px); box-shadow:0 2px 0 #0a6b4b}
+  .btn-reset{
+    flex:1; color:#ff8d82; background:rgba(255,107,94,.05);
+    border:1px solid rgba(255,107,94,.55); box-shadow:0 5px 0 rgba(255,107,94,.18);
+  }
+  .btn-reset:hover{background:rgba(255,107,94,.14); transform:translateY(-2px);
+    box-shadow:0 7px 0 rgba(255,107,94,.22)}
+  .btn-reset:active{transform:translateY(3px); box-shadow:0 1px 0 rgba(255,107,94,.18)}
+  .hint{font:400 11px 'IBM Plex Mono'; color:var(--dim); letter-spacing:.04em}
+  kbd{font:600 9.5px 'IBM Plex Mono'; border:1px solid var(--line); border-bottom-width:2px;
+    border-radius:5px; padding:2px 7px; background:#07100c; color:#a5c4b5}
+  .hint span{color:#3b5a4b}
+
+  .ticker{position:relative; z-index:2; flex:none; overflow:hidden;
+    border-top:1px solid var(--line); background:#07100c; padding:9px 0}
+  .track{display:inline-flex; white-space:nowrap; animation:tick 34s linear infinite; will-change:transform}
+  .ticker:hover .track{animation-play-state:paused}
+  .track span{font:500 10px/1 'IBM Plex Mono'; letter-spacing:.24em; color:rgba(140,180,160,.5); padding-right:56px}
+  @keyframes tick{to{transform:translateX(-50%)}}
+
+  .err{
+    position:fixed; left:16px; bottom:16px; z-index:50; max-width:70vw;
+    font:500 12px/1.5 'IBM Plex Mono'; color:#ffb4ad; background:rgba(52,14,10,.94);
+    border:1px solid rgba(255,107,94,.6); border-radius:8px; padding:10px 14px;
+    box-shadow:0 8px 30px rgba(0,0,0,.5);
+  }
+
+  @media (max-width:1020px){
+    .stage{grid-template-columns:1fr; gap:32px}
+    .console{width:100%; max-width:560px; margin:0 auto}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .track{animation:none}
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="brand" href="/" aria-label="Back to the Products Decoded Lab">
+    <svg width="30" height="24" viewBox="0 0 30 24" fill="none" aria-hidden="true">
+      <circle cx="11" cy="12" r="8" stroke="#34d399" stroke-width="2"/>
+      <circle cx="19" cy="12" r="8" stroke="#fb7185" stroke-width="2" opacity=".9"/>
+    </svg>
+    <b>PD LAB</b><small>· BACK TO INDEX</small>
+  </a>
+  <div class="pill st-idle" id="statusPill"><span class="dot"></span><span id="pillText">STANDBY</span></div>
+</header>
+
+<main class="stage">
+  <section class="rig-col">
+    <div class="rig" id="rig">
+      <canvas id="cv" width="720" height="620"></canvas>
+      <span class="anno a1">16 PENDULUMS · 24 → 39 SWINGS PER CYCLE</span>
+      <span class="anno a2">VIEWED FROM ABOVE</span>
+    </div>
+  </section>
+
+  <aside class="console">
+    <div class="c-head"><span>CONTROL PANEL</span><span>UNIT C-03</span></div>
+    <p class="kicker">EVERYTHING REALIGNS</p>
+    <h1>PENDULUM<br><em>WAVE</em></h1>
+    <p class="lede">Sixteen pendulums, each a little shorter than the last. They start as one line, drift into snakes and braids, and then — exactly on schedule — snap back into a single line again.</p>
+
+    <div class="big-stat">
+      <span class="label">NEXT ALIGNMENT</span>
+      <span class="big" id="countdown">30.0s</span>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><span class="label">CYCLE</span><span class="val" id="cycle">30.0s</span></div>
+      <div class="stat"><span class="label">PATTERN</span><span class="val" id="pattern">—</span></div>
+      <div class="stat"><span class="label">ELAPSED</span><span class="val" id="elapsed">00:00</span></div>
+    </div>
+
+    <div class="bar-row">
+      <span class="label">SPLIT</span>
+      <div class="bar"><i id="barCycle"></i></div>
+      <span class="label end">ALIGNED</span>
+    </div>
+
+    <div class="rate">
+      <div class="rate-head">
+        <span class="label">TIME</span>
+        <b><span id="speedVal">1.00</span>×</b>
+      </div>
+      <input type="range" id="speed" min="0" max="100" value="50" aria-label="Time scale">
+    </div>
+
+    <div class="btns">
+      <button class="btn btn-start" id="startBtn"><span id="startLabel">▶ RELEASE</span></button>
+      <button class="btn btn-reset" id="resetBtn">↺ RESET</button>
+    </div>
+
+    <p class="hint"><kbd>SPACE</kbd> release / pause <span>·</span> <kbd>R</kbd> reset <span>·</span> nothing is synchronised, they just share a cycle</p>
+  </aside>
+</main>
+
+<footer class="ticker" aria-hidden="true">
+  <div class="track">
+    <span>LONGEST: 24 SWINGS ◆ SHORTEST: 39 SWINGS ◆ NO TWO EVER MATCH ◆ ALL 16 REALIGN EVERY 30s ◆ LENGTH ∝ 1 / SWINGS² ◆ </span>
+    <span>LONGEST: 24 SWINGS ◆ SHORTEST: 39 SWINGS ◆ NO TWO EVER MATCH ◆ ALL 16 REALIGN EVERY 30s ◆ LENGTH ∝ 1 / SWINGS² ◆ </span>
+  </div>
+</footer>
+
+<div class="err" id="err" hidden></div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ── the rig ───────────────────────────────────────────────────────
+  const W = 720, H = 620;
+  const N = 16;              // pendulums
+  const N0 = 24;             // swings the LONGEST completes in one cycle
+  const CYCLE = 30;          // seconds until every pendulum realigns
+  const CX = 360;            // the pivot rail, seen end-on
+  const ROW_Y = 74, ROW_GAP = 31;
+  const AMP = 270;           // release offset, px — equal for every pendulum,
+                             // which is how the real rig is released
+  const BOB_R = 9;
+  const TRAIL = 7;           // smear frames, sampled backwards in time
+  const TAU = Math.PI * 2;
+  const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+
+  // swings[i] = how many full swings pendulum i makes per cycle.
+  // Length ∝ 1/swings², so they all come back together after exactly CYCLE.
+  const P = [];
+  for (let i = 0; i < N; i++) {
+    const n = N0 + i;
+    const hue = 158 + (i / (N - 1)) * 192;           // emerald → rose
+    P.push({
+      n: n,
+      y: ROW_Y + i * ROW_GAP,
+      amp: AMP,
+      hue: hue,
+      col: 'hsl(' + hue.toFixed(0) + ' 78% 62%)',
+      dim: 'hsla(' + hue.toFixed(0) + ' 70% 55% / .26)'
+    });
+  }
+
+  // ── state ─────────────────────────────────────────────────────────
+  const cv = document.getElementById('cv');
+  const ctx = cv.getContext('2d');
+  let t = 0;                 // simulated seconds since release
+  let mode = 'idle', speed = 1, last = performance.now();
+
+  const els = {
+    pill: document.getElementById('statusPill'),
+    pillTxt: document.getElementById('pillText'),
+    countdown: document.getElementById('countdown'),
+    cycle: document.getElementById('cycle'),
+    pattern: document.getElementById('pattern'),
+    elapsed: document.getElementById('elapsed'),
+    barCycle: document.getElementById('barCycle'),
+    speed: document.getElementById('speed'),
+    speedVal: document.getElementById('speedVal'),
+    start: document.getElementById('startBtn'),
+    startLb: document.getElementById('startLabel'),
+    reset: document.getElementById('resetBtn'),
+    err: document.getElementById('err')
+  };
+
+  const MODES = {
+    idle:    { pill: 'STANDBY', cls: 'idle',   btn: '▶ RELEASE' },
+    running: { pill: 'SWINGING', cls: 'run',   btn: '⏸ PAUSE' },
+    paused:  { pill: 'PAUSED',  cls: 'paused', btn: '▶ RESUME' }
+  };
+
+  function showErr(msg) { els.err.hidden = false; els.err.textContent = '⚠ ' + msg; }
+
+  // ── position ──────────────────────────────────────────────────────
+  // Looking straight down the rail: each bob's displacement along the swing
+  // axis is x(t) = amp·cos(2π·n·t/CYCLE). Depth down the rail is its row.
+  // Position is closed-form, so a motion trail is just the same function
+  // evaluated slightly in the past — no history to store.
+  function bobX(p, time) { return CX + p.amp * Math.cos(TAU * p.n * time / CYCLE); }
+
+  // How far through the cycle we are — 0 and 1 are both "all in a line".
+  const phase = () => (t % CYCLE) / CYCLE;
+
+  // Count the distinct vertical lines the bobs currently form.
+  // Counting real positions rather than phase groups matters: cosine is even,
+  // so at t = CYCLE/3 the pendulums sit in three phase groups but only TWO
+  // visible lines — the eye would call the "3 GROUPS" label a lie.
+  function patternName() {
+    const off = [];
+    for (let i = 0; i < N; i++) off.push(P[i].amp * Math.cos(TAU * P[i].n * t / CYCLE));
+    off.sort((a, b) => a - b);
+
+    // Alignment is about total spread. Gap-based clustering alone would call
+    // the mid-cycle mush "aligned": 16 bobs spread over 88px sit ~6px apart.
+    if (off[N - 1] - off[0] < AMP * 0.41) return 'ALIGNED';
+
+    const cl = [[off[0]]];
+    for (let i = 1; i < N; i++) {
+      if (off[i] - off[i - 1] > AMP * 0.32) cl.push([]);
+      cl[cl.length - 1].push(off[i]);
+    }
+    const tight = cl.every(c => c[c.length - 1] - c[0] < AMP * 0.25);
+    return (tight && cl.length >= 2 && cl.length <= 4) ? cl.length + ' LINES' : '—';
+  }
+
+  // ── drawing ───────────────────────────────────────────────────────
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+
+    // swing tracks — the path each bob is confined to
+    ctx.strokeStyle = 'rgba(150,200,175,.09)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let i = 0; i < N; i++) {
+      ctx.moveTo(CX - AMP - 16, P[i].y);
+      ctx.lineTo(CX + AMP + 16, P[i].y);
+    }
+    ctx.stroke();
+
+    // the pivot rail, seen end-on
+    ctx.strokeStyle = 'rgba(150,200,175,.22)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(CX, P[0].y - 22);
+    ctx.lineTo(CX, P[N - 1].y + 22);
+    ctx.stroke();
+
+    const xs = [];
+    for (let i = 0; i < N; i++) xs.push(bobX(P[i], t));
+
+    // motion smear, sampled backwards through the same closed form
+    for (let k = TRAIL; k >= 1; k--) {
+      const tt = t - k * 0.035;
+      ctx.beginPath();
+      for (let i = 0; i < N; i++) {
+        ctx.moveTo(bobX(P[i], tt), P[i].y);
+        ctx.arc(bobX(P[i], tt), P[i].y, BOB_R * (1 - k / (TRAIL + 2)), 0, TAU);
+      }
+      ctx.fillStyle = 'rgba(140,220,190,' + (0.05 * (1 - k / (TRAIL + 1))).toFixed(3) + ')';
+      ctx.fill();
+    }
+
+    // displacement ticks from the rail to each bob
+    for (let i = 0; i < N; i++) {
+      ctx.beginPath();
+      ctx.moveTo(CX, P[i].y);
+      ctx.lineTo(xs[i], P[i].y);
+      ctx.strokeStyle = P[i].dim;
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+    }
+
+    // the curve threaded through every bob — this is the wave
+    ctx.beginPath();
+    ctx.moveTo(xs[0], P[0].y);
+    for (let i = 0; i < N - 1; i++) {
+      const ax = xs[i], ay = P[i].y, bx = xs[i + 1], by = P[i + 1].y;
+      ctx.quadraticCurveTo(ax, ay, (ax + bx) / 2, (ay + by) / 2);
+    }
+    ctx.lineTo(xs[N - 1], P[N - 1].y);
+    const g = ctx.createLinearGradient(0, P[0].y, 0, P[N - 1].y);
+    g.addColorStop(0, 'rgba(52,211,153,.6)');
+    g.addColorStop(1, 'rgba(251,113,133,.6)');
+    ctx.strokeStyle = g;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // bobs
+    for (let i = 0; i < N; i++) {
+      const p = P[i];
+      ctx.beginPath();
+      ctx.arc(xs[i], p.y, BOB_R, 0, TAU);
+      ctx.fillStyle = p.col;
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(xs[i] - BOB_R * 0.3, p.y - BOB_R * 0.34, BOB_R * 0.32, 0, TAU);
+      ctx.fillStyle = 'rgba(255,255,255,.5)';
+      ctx.fill();
+
+      // pivot dot on the rail
+      ctx.beginPath();
+      ctx.arc(CX, p.y, 2.2, 0, TAU);
+      ctx.fillStyle = 'rgba(180,220,200,.45)';
+      ctx.fill();
+    }
+
+    // swing counts in the left gutter, first and last only
+    ctx.font = "500 10px 'IBM Plex Mono', monospace";
+    ctx.fillStyle = 'rgba(150,190,170,.5)';
+    ctx.fillText(N0 + ' SWINGS', 14, P[0].y + 3.5);
+    ctx.fillText((N0 + N - 1) + ' SWINGS', 14, P[N - 1].y + 3.5);
+  }
+
+  // ── UI ────────────────────────────────────────────────────────────
+  const cache = { c: '', p: '', e: '' };
+  function syncUI() {
+    const left = CYCLE - (t % CYCLE);
+    const cs = left.toFixed(1) + 's';
+    if (cs !== cache.c) { cache.c = cs; els.countdown.textContent = cs; }
+
+    const pn = patternName();
+    if (pn !== cache.p) {
+      cache.p = pn;
+      els.pattern.textContent = pn;
+      const aligned = pn === 'ALIGNED';
+      els.countdown.classList.toggle('sync', aligned);
+      if (mode === 'running') {
+        els.pillTxt.textContent = aligned ? 'ALIGNED' : 'SWINGING';
+        els.pill.className = 'pill st-' + (aligned ? 'sync' : 'run');
+      }
+    }
+
+    const mm = Math.floor(t / 60), ss = Math.floor(t % 60);
+    const es = String(mm).padStart(2, '0') + ':' + String(ss).padStart(2, '0');
+    if (es !== cache.e) { cache.e = es; els.elapsed.textContent = es; }
+
+    els.barCycle.style.width = (phase() * 100).toFixed(1) + '%';
+  }
+
+  function setMode(m) {
+    mode = m;
+    const M = MODES[m];
+    els.pillTxt.textContent = M.pill;
+    els.pill.className = 'pill st-' + M.cls;
+    els.startLb.textContent = M.btn;
+    cache.p = '';   // force the pill to re-evaluate on the next tick
+  }
+
+  function toggle() {
+    if (mode === 'idle' || mode === 'paused') setMode('running');
+    else if (mode === 'running') setMode('paused');
+  }
+
+  function reset() {
+    t = 0;
+    cache.c = cache.p = cache.e = '';
+    setMode('idle');
+    draw(); syncUI();
+  }
+
+  function applySpeed() {
+    const v = +els.speed.value;                         // 0..100
+    speed = Math.pow(2, (v - 50) / 25);                 // 0.25× .. 4×
+    els.speedVal.textContent = speed.toFixed(2);
+    els.speed.style.setProperty('--pct', v + '%');
+  }
+
+  function frame(now) {
+    try {
+      const dtMs = Math.min(50, now - last); last = now;
+      if (mode === 'running') t += (dtMs / 1000) * speed;
+      draw();
+      syncUI();
+    } catch (err) {
+      showErr(err && err.message ? err.message : String(err));
+    }
+    requestAnimationFrame(frame);   // loop always survives
+  }
+
+  els.start.addEventListener('click', toggle);
+  els.reset.addEventListener('click', reset);
+  els.speed.addEventListener('input', applySpeed);
+  window.addEventListener('keydown', e => {
+    if (e.target && e.target.tagName === 'INPUT') return;
+    if (e.code === 'Space') { e.preventDefault(); toggle(); }
+    else if (e.key === 'r' || e.key === 'R') reset();
+  });
+
+  els.cycle.textContent = CYCLE.toFixed(1) + 's';
+  applySpeed();
+  setMode('idle');
+  draw(); syncUI();
+  requestAnimationFrame(frame);
+})();
+</script>
+<script defer src="/_vercel/insights/script.js"></script>
+</body>
+</html>
