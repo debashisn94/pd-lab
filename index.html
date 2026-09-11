@@ -201,7 +201,7 @@
     <h1>Small things that are <em>very hard to stop watching.</em></h1>
     <p class="lede">Physics toys, generative sketches and tiny games — each one a <b>single HTML file</b> that runs the moment it loads. No sign-up, no tutorial, no loading screen. Built mostly to see whether an idea feels good before it becomes a product.</p>
     <p class="meta-line">
-      <span><s id="count">1</s> experiment</span>
+      <span><s id="count">1</s> <span id="countWord">experiment</span></span>
       <span>·</span>
       <span>Runs in the browser</span>
       <span>·</span>
@@ -237,6 +237,15 @@
    `poster` is optional — leave it out and the CSS plate is used.
    ──────────────────────────────────────────────────────────── */
 const TOYS = [
+  {
+    slug:  'galton-board',
+    title: 'Galton Board',
+    blurb: 'Every peg is a coin flip, so no ball knows where it is going — and a perfect bell curve builds itself at the bottom anyway.',
+    tags:  ['probability', 'physics', 'canvas'],
+    a1:    '#a78bfa',
+    a2:    '#22d3ee',
+    added: '2026-09-12'
+  },
   {
     slug:  'collision-chamber',
     title: 'Collision Chamber',
@@ -277,6 +286,7 @@ grid.innerHTML = TOYS.map((t, i) => {
   </div>`;
 
 document.getElementById('count').textContent = TOYS.length;
+document.getElementById('countWord').textContent = TOYS.length === 1 ? 'experiment' : 'experiments';
 document.getElementById('yr').textContent = new Date().getFullYear();
 const newest = TOYS.map(t => t.added).sort().pop();
 if (newest) {

@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Galton Board — Products Decoded Lab</title>
+<meta name="description" content="Drop balls through a field of pegs. Every peg is a fair coin flip, every path is random — and a perfect bell curve builds itself at the bottom anyway. A self-contained probability toy that runs in your browser.">
+<link rel="canonical" href="https://lab.productsdecoded.com/t/galton-board/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Products Decoded — The Lab">
+<meta property="og:title" content="Galton Board">
+<meta property="og:description" content="Every peg is a coin flip. Every path is random. The bell curve shows up anyway.">
+<meta property="og:url" content="https://lab.productsdecoded.com/t/galton-board/">
+<meta property="og:image" content="https://lab.productsdecoded.com/og/galton-board.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='4' y='18' width='5' height='10' fill='%23a78bfa'/><rect x='11' y='10' width='5' height='18' fill='%23c4b5fd'/><rect x='18' y='6' width='5' height='22' fill='%2322d3ee'/><rect x='25' y='16' width='4' height='12' fill='%2322d3ee' opacity='.6'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b0d16; --panel:#141526; --panel2:#101120;
+    --line:#262a45; --ink:#eceaf6; --dim:#8b8bb0;
+    --violet:#a78bfa; --violet2:#8b6cf6; --cyan:#22d3ee; --red:#ff6b5e;
+  }
+  *{box-sizing:border-box;margin:0}
+  html,body{height:100%}
+  body{
+    font-family:'IBM Plex Mono',monospace; color:var(--ink);
+    display:flex; flex-direction:column; min-height:100vh; overflow-x:hidden;
+    background:
+      radial-gradient(1000px 640px at 6% -12%, rgba(167,139,250,.09), transparent 60%),
+      radial-gradient(880px 620px at 104% 110%, rgba(34,211,238,.06), transparent 60%),
+      var(--bg);
+  }
+  body::before{
+    content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+    background-image:
+      linear-gradient(rgba(160,160,220,.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(160,160,220,.05) 1px, transparent 1px);
+    background-size:46px 46px;
+    -webkit-mask-image:radial-gradient(ellipse at 50% 45%, black 30%, transparent 78%);
+            mask-image:radial-gradient(ellipse at 50% 45%, black 30%, transparent 78%);
+  }
+  body::after{
+    content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+    background:radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,.4) 100%);
+  }
+  ::selection{background:rgba(167,139,250,.35)}
+
+  .topbar{
+    position:relative; z-index:2; flex:none;
+    display:flex; justify-content:space-between; align-items:center;
+    padding:14px clamp(18px,3vw,32px); border-bottom:1px solid var(--line);
+  }
+  .brand{display:flex; align-items:center; gap:11px; text-decoration:none; color:inherit; transition:opacity .2s}
+  .brand:hover{opacity:.7}
+  .brand:focus-visible{outline:2px solid var(--violet); outline-offset:4px; border-radius:6px}
+  .brand svg{display:block}
+  .brand b{font:700 12px 'Unbounded'; letter-spacing:.16em}
+  .brand small{font:500 10px 'IBM Plex Mono'; letter-spacing:.2em; color:var(--dim)}
+  .pill{
+    display:inline-flex; align-items:center; gap:8px;
+    font:500 10px 'IBM Plex Mono'; letter-spacing:.18em;
+    padding:7px 14px; border-radius:999px; border:1px solid var(--line); color:var(--dim);
+    transition:color .3s, border-color .3s;
+  }
+  .pill .dot{width:7px;height:7px;border-radius:50%;background:#5b5b7d;transition:background .3s}
+  .pill.st-run{border-color:rgba(167,139,250,.45);color:#d6c9ff}
+  .pill.st-run .dot{background:var(--violet);box-shadow:0 0 8px var(--violet);animation:pulse 1.2s infinite}
+  .pill.st-paused{border-color:rgba(139,139,176,.45);color:#b9b9d4}
+  .pill.st-full{border-color:rgba(34,211,238,.5);color:#9debf6}
+  .pill.st-full .dot{background:var(--cyan);box-shadow:0 0 8px rgba(34,211,238,.8)}
+  @keyframes pulse{50%{opacity:.3}}
+
+  .stage{
+    position:relative; z-index:1; flex:1;
+    display:grid; grid-template-columns:minmax(0,1fr) 390px;
+    gap:clamp(28px,4vw,64px); align-items:center;
+    width:100%; max-width:1300px; margin:0 auto;
+    padding:clamp(18px,3vh,36px) clamp(18px,4vw,48px);
+  }
+  .board-col{display:flex; justify-content:center; min-width:0}
+  .board{position:relative; width:min(100%,560px); aspect-ratio:640/760}
+  #cv{
+    position:absolute; inset:0; width:100%; height:100%; z-index:1;
+    border-radius:14px; border:1px solid var(--line); background:#080910;
+  }
+  .board::after{
+    content:''; position:absolute; inset:0; border-radius:14px; pointer-events:none; z-index:3;
+    box-shadow:inset 0 3px 22px rgba(255,255,255,.04), inset 0 -14px 44px rgba(0,0,0,.5), 0 30px 80px rgba(0,0,0,.55);
+  }
+  .anno{position:absolute; z-index:4; font:500 9.5px 'IBM Plex Mono'; letter-spacing:.1em; color:rgba(150,150,190,.55)}
+  .a1{top:11px; left:16px} .a2{top:11px; right:16px}
+
+  .console{
+    position:relative; overflow:hidden;
+    background:linear-gradient(180deg,var(--panel),var(--panel2));
+    border:1px solid var(--line); border-radius:12px;
+    padding:clamp(22px,3vw,32px);
+  }
+  .console::before{content:''; position:absolute; top:0; left:0; right:0; height:3px;
+    background:linear-gradient(90deg,var(--violet),var(--cyan))}
+  .console::after{content:'02'; position:absolute; right:10px; top:-6px;
+    font:900 92px 'Unbounded'; color:rgba(255,255,255,.03); pointer-events:none}
+  .c-head{
+    display:flex; justify-content:space-between; padding-bottom:14px; margin-bottom:18px;
+    border-bottom:1px solid var(--line);
+    font:500 10px 'IBM Plex Mono'; letter-spacing:.24em; color:var(--dim);
+  }
+  .kicker{display:flex; align-items:center; gap:10px;
+    font:500 10px 'IBM Plex Mono'; letter-spacing:.28em; color:var(--cyan)}
+  .kicker::before{content:''; width:22px; height:1px; background:var(--cyan)}
+  h1{font:900 clamp(26px,2.5vw,36px)/1.08 'Unbounded'; letter-spacing:.01em; margin:14px 0 14px}
+  h1 em{font-style:normal; color:var(--violet)}
+  .lede{font:400 12.5px/1.7 'IBM Plex Mono'; color:var(--dim); max-width:42ch; margin-bottom:20px}
+
+  .big-stat{padding:2px 0 16px; border-bottom:1px solid var(--line)}
+  .label{display:block; font:500 10px 'IBM Plex Mono'; letter-spacing:.22em; color:var(--dim)}
+  .big{display:block; font:900 clamp(42px,4.2vw,56px)/1.1 'Unbounded';
+    font-variant-numeric:tabular-nums; margin-top:6px}
+  .stats{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; padding:16px 0 14px}
+  .stat{border:1px solid var(--line); border-radius:7px; padding:9px 11px; background:rgba(8,9,16,.5)}
+  .val{display:block; font:600 17px 'IBM Plex Mono'; color:#d5d2ec; margin-top:4px; font-variant-numeric:tabular-nums}
+  .exp{display:block; font:400 9.5px 'IBM Plex Mono'; color:#5e5e84; margin-top:3px; letter-spacing:.06em}
+
+  .bar-row{display:flex; align-items:center; gap:12px; margin-bottom:18px}
+  .bar{flex:1; height:10px; border:1px solid var(--line); background:#080910; position:relative; overflow:hidden}
+  .bar i{display:block; height:100%; width:0%;
+    background:linear-gradient(90deg,var(--violet),var(--cyan)); transition:width .35s ease}
+  .bar::after{content:''; position:absolute; inset:0;
+    background:repeating-linear-gradient(90deg, transparent 0 9px, rgba(8,9,16,.8) 9px 10px)}
+  .bar-row .end{text-align:right}
+
+  .rate{padding:2px 0 20px}
+  .rate-head{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:11px}
+  .rate-head b{font:600 13px 'IBM Plex Mono'; color:#d5d2ec; font-variant-numeric:tabular-nums}
+  input[type=range]{
+    -webkit-appearance:none; appearance:none; width:100%; height:4px; border-radius:4px;
+    background:linear-gradient(90deg,var(--violet) 0%, var(--violet) var(--pct,20%), #242640 var(--pct,20%), #242640 100%);
+    outline:none; cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; appearance:none; width:17px; height:17px; border-radius:50%;
+    background:#f4f1ff; border:3px solid var(--violet2); cursor:pointer;
+    box-shadow:0 2px 8px rgba(0,0,0,.5);
+  }
+  input[type=range]::-moz-range-thumb{
+    width:17px; height:17px; border-radius:50%; border:3px solid var(--violet2);
+    background:#f4f1ff; cursor:pointer;
+  }
+  input[type=range]:focus-visible{outline:2px solid var(--cyan); outline-offset:4px}
+
+  .btns{display:flex; gap:12px; margin-bottom:16px}
+  .btn{
+    font:700 13px 'Unbounded'; letter-spacing:.1em; border:none; border-radius:9px;
+    padding:17px 14px; cursor:pointer; user-select:none;
+    transition:transform .15s ease, box-shadow .15s ease, background .2s ease, color .2s ease;
+  }
+  .btn:focus-visible{outline:2px solid var(--cyan); outline-offset:3px}
+  .btn-start{
+    flex:1.55; color:#180a33;
+    background:linear-gradient(180deg,#c9b4ff,var(--violet2));
+    box-shadow:0 5px 0 #4a2ea3, 0 14px 30px rgba(140,100,255,.24);
+  }
+  .btn-start:hover:not(:disabled){transform:translateY(-2px);
+    box-shadow:0 7px 0 #4a2ea3, 0 18px 34px rgba(140,100,255,.32)}
+  .btn-start:active:not(:disabled){transform:translateY(3px); box-shadow:0 2px 0 #4a2ea3}
+  .btn-start:disabled{background:#333652; color:#8b8bb0; box-shadow:0 5px 0 #1d1f33; cursor:default}
+  .btn-reset{
+    flex:1; color:#ff8d82; background:rgba(255,107,94,.05);
+    border:1px solid rgba(255,107,94,.55); box-shadow:0 5px 0 rgba(255,107,94,.18);
+  }
+  .btn-reset:hover{background:rgba(255,107,94,.14); transform:translateY(-2px);
+    box-shadow:0 7px 0 rgba(255,107,94,.22)}
+  .btn-reset:active{transform:translateY(3px); box-shadow:0 1px 0 rgba(255,107,94,.18)}
+  .hint{font:400 11px 'IBM Plex Mono'; color:var(--dim); letter-spacing:.04em}
+  kbd{font:600 9.5px 'IBM Plex Mono'; border:1px solid var(--line); border-bottom-width:2px;
+    border-radius:5px; padding:2px 7px; background:#080910; color:#adaccb}
+  .hint span{color:#41436a}
+
+  .ticker{position:relative; z-index:2; flex:none; overflow:hidden;
+    border-top:1px solid var(--line); background:#080910; padding:9px 0}
+  .track{display:inline-flex; white-space:nowrap; animation:tick 34s linear infinite; will-change:transform}
+  .ticker:hover .track{animation-play-state:paused}
+  .track span{font:500 10px/1 'IBM Plex Mono'; letter-spacing:.24em; color:rgba(140,140,180,.5); padding-right:56px}
+  @keyframes tick{to{transform:translateX(-50%)}}
+
+  .err{
+    position:fixed; left:16px; bottom:16px; z-index:50; max-width:70vw;
+    font:500 12px/1.5 'IBM Plex Mono'; color:#ffb4ad; background:rgba(52,14,10,.94);
+    border:1px solid rgba(255,107,94,.6); border-radius:8px; padding:10px 14px;
+    box-shadow:0 8px 30px rgba(0,0,0,.5);
+  }
+
+  @media (max-width:1020px){
+    .stage{grid-template-columns:1fr; gap:32px}
+    .console{width:100%; max-width:560px; margin:0 auto}
+    .board{width:min(100%,460px)}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .track{animation:none}
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="brand" href="/" aria-label="Back to the Products Decoded Lab">
+    <svg width="30" height="24" viewBox="0 0 30 24" fill="none" aria-hidden="true">
+      <circle cx="11" cy="12" r="8" stroke="#a78bfa" stroke-width="2"/>
+      <circle cx="19" cy="12" r="8" stroke="#22d3ee" stroke-width="2" opacity=".9"/>
+    </svg>
+    <b>PD LAB</b><small>· BACK TO INDEX</small>
+  </a>
+  <div class="pill st-idle" id="statusPill"><span class="dot"></span><span id="pillText">STANDBY</span></div>
+</header>
+
+<main class="stage">
+  <section class="board-col">
+    <div class="board" id="board">
+      <canvas id="cv" width="640" height="760"></canvas>
+      <span class="anno a1">14 ROWS · EACH PEG: FAIR 50 / 50</span>
+      <span class="anno a2">15 BINS · BINOMIAL(14, ½)</span>
+    </div>
+  </section>
+
+  <aside class="console">
+    <div class="c-head"><span>CONTROL PANEL</span><span>UNIT B-07</span></div>
+    <p class="kicker">ORDER FROM NOISE</p>
+    <h1>GALTON<br><em>BOARD</em></h1>
+    <p class="lede">Every peg is a coin flip. No ball knows where it is going and no two take the same path — yet the pile at the bottom is a bell curve every single time.</p>
+
+    <div class="big-stat">
+      <span class="label">BALLS DROPPED</span>
+      <span class="big" id="dropped">0</span>
+    </div>
+
+    <div class="stats">
+      <div class="stat">
+        <span class="label">MEAN</span><span class="val" id="mean">—</span>
+        <span class="exp">exp 7.00</span>
+      </div>
+      <div class="stat">
+        <span class="label">STD DEV</span><span class="val" id="sd">—</span>
+        <span class="exp">exp 1.87</span>
+      </div>
+      <div class="stat">
+        <span class="label">FIT</span><span class="val" id="fit">—</span>
+        <span class="exp">to the curve</span>
+      </div>
+    </div>
+
+    <div class="bar-row">
+      <span class="label">NOISE</span>
+      <div class="bar"><i id="barFit"></i></div>
+      <span class="label end">CURVE</span>
+    </div>
+
+    <div class="rate">
+      <div class="rate-head">
+        <span class="label">DROP RATE</span>
+        <b><span id="rateVal">12</span> / sec</b>
+      </div>
+      <input type="range" id="rate" min="0" max="100" value="50" aria-label="Drop rate, balls per second">
+    </div>
+
+    <div class="btns">
+      <button class="btn btn-start" id="startBtn"><span id="startLabel">▶ START DROP</span></button>
+      <button class="btn btn-reset" id="resetBtn">↺ RESET</button>
+    </div>
+
+    <p class="hint"><kbd>SPACE</kbd> start / pause <span>·</span> <kbd>R</kbd> reset <span>·</span> drag the slider to speed up time</p>
+  </aside>
+</main>
+
+<footer class="ticker" aria-hidden="true">
+  <div class="track">
+    <span>RANDOM PATH ⇒ PREDICTABLE PILE ◆ 14 COIN FLIPS PER BALL ◆ 16,384 POSSIBLE ROUTES ◆ ONLY ONE HITS BIN 0 ◆ 3,432 HIT THE MIDDLE ◆ </span>
+    <span>RANDOM PATH ⇒ PREDICTABLE PILE ◆ 14 COIN FLIPS PER BALL ◆ 16,384 POSSIBLE ROUTES ◆ ONLY ONE HITS BIN 0 ◆ 3,432 HIT THE MIDDLE ◆ </span>
+  </div>
+</footer>
+
+<div class="err" id="err" hidden></div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ── geometry (canvas internal units) ──────────────────────────────
+  const W = 640, H = 760;
+  const ROWS = 14;                 // peg rows  → 14 coin flips per ball
+  const BINS = ROWS + 1;           // 15 landing bins
+  const S = 40;                    // horizontal lattice spacing
+  const ROWGAP = 34;               // vertical gap between peg rows
+  const CX = W / 2;
+  const TOP = 96;                  // y of peg row 0
+  const LASTY = TOP + (ROWS - 1) * ROWGAP;   // y of final peg row  = 538
+  const BINTOP = LASTY + 48;                 // where bins begin     = 586
+  const BINBOT = H - 22;                     // bin floor            = 738
+  const BINH = BINBOT - BINTOP;              // usable bin height    = 152
+  const PEG_R = 3.2, BALL_R = 6.4;
+  const TARGET = 10000;            // run completes here
+
+  // ── physics constants ─────────────────────────────────────────────
+  // Tuned so one row takes ~16 frames at 60fps: a watchable ping-ping-ping.
+  const G = 0.55;                  // px / frame²
+  const BOUNCE = 2.2;              // upward kick off a peg
+  const MAX_FLIGHT = 900;          // hard ceiling on simultaneous sprites
+
+  const TAU = Math.PI * 2;
+  const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+  const lattice = (row, col) => CX + (col - row / 2) * S;
+  const binX = (b) => CX + (b - ROWS / 2) * S;
+  const rowY = (row) => TOP + row * ROWGAP;
+
+  // Time to fall ROWGAP given the upward kick — solves ½gT² − BOUNCE·T − ROWGAP = 0.
+  const FALL_T = (BOUNCE + Math.sqrt(BOUNCE * BOUNCE + 2 * G * ROWGAP)) / G;
+
+  // ── expected distribution: Binomial(14, ½) ────────────────────────
+  const EXP = (function () {
+    const c = [1];
+    for (let i = 1; i <= ROWS; i++) {
+      c.push(1);
+      for (let j = c.length - 2; j > 0; j--) c[j] += c[j - 1];
+    }
+    const total = Math.pow(2, ROWS);
+    return c.map(v => v / total);     // probability per bin, sums to 1
+  })();
+  const EXP_MAX = Math.max.apply(null, EXP);
+  const EXP_MEAN = ROWS / 2;                        // 7
+  const EXP_SD = Math.sqrt(ROWS * 0.25);            // 1.8708
+
+  // ── colour per bin: cyan at the edges, violet through the middle ──
+  const BIN_COL = [], BIN_GLOW = [];
+  for (let b = 0; b < BINS; b++) {
+    const t = 1 - Math.abs(b - ROWS / 2) / (ROWS / 2);   // 0 edge → 1 centre
+    const hue = 188 + t * 72;                            // 188 cyan → 260 violet
+    BIN_COL.push('hsl(' + hue.toFixed(0) + ' 90% ' + (58 + t * 10).toFixed(0) + '%)');
+    BIN_GLOW.push('hsla(' + hue.toFixed(0) + ' 95% 70% / .5)');
+  }
+
+  // ── state ─────────────────────────────────────────────────────────
+  const cv = document.getElementById('cv');
+  const ctx = cv.getContext('2d');
+  let balls = [], sparks = [], bins = new Array(BINS).fill(0);
+  let dropped = 0, sumBin = 0, sumBinSq = 0;
+  let mode = 'idle', spawnAcc = 0, rate = 12, last = performance.now();
+
+  const els = {
+    pill: document.getElementById('statusPill'),
+    pillTxt: document.getElementById('pillText'),
+    dropped: document.getElementById('dropped'),
+    mean: document.getElementById('mean'),
+    sd: document.getElementById('sd'),
+    fit: document.getElementById('fit'),
+    barFit: document.getElementById('barFit'),
+    rate: document.getElementById('rate'),
+    rateVal: document.getElementById('rateVal'),
+    start: document.getElementById('startBtn'),
+    startLb: document.getElementById('startLabel'),
+    reset: document.getElementById('resetBtn'),
+    err: document.getElementById('err')
+  };
+
+  const MODES = {
+    idle:    { pill: 'STANDBY',  cls: 'idle',   btn: '▶ START DROP' },
+    running: { pill: 'RUNNING',  cls: 'run',    btn: '⏸ PAUSE' },
+    paused:  { pill: 'PAUSED',   cls: 'paused', btn: '▶ RESUME' },
+    full:    { pill: 'COMPLETE', cls: 'full',   btn: '✓ 10,000 DROPPED' }
+  };
+
+  function showErr(msg) { els.err.hidden = false; els.err.textContent = '⚠ ' + msg; }
+
+  // ── simulation ────────────────────────────────────────────────────
+  function spawn() {
+    if (balls.length >= MAX_FLIGHT) return;
+    balls.push({
+      x: CX + (Math.random() - 0.5) * 1.5,   // a hair of jitter so the column breathes
+      y: TOP - ROWGAP * 1.7,
+      vx: 0, vy: 0,
+      row: 0, col: 0,
+      tx: CX, hue: 0
+    });
+  }
+
+  // Deflect off the peg the ball has just reached: one fair coin flip.
+  function deflect(b) {
+    const goRight = Math.random() < 0.5 ? 0 : 1;
+    b.x = lattice(b.row, b.col);            // snap to the peg, kills drift error
+    b.col += goRight;
+    b.row += 1;
+    b.vy = -BOUNCE;
+    const nx = b.row < ROWS ? lattice(b.row, b.col) : binX(b.col);
+    b.tx = nx;
+    b.vx = (nx - b.x) / FALL_T;             // arrive exactly as it reaches the next row
+    if (sparks.length < 260) {
+      sparks.push({ x: b.x, y: rowY(b.row - 1), life: 1 });
+    }
+  }
+
+  function land(b) {
+    const bin = clamp(b.col, 0, BINS - 1);
+    bins[bin]++;
+    dropped++;
+    sumBin += bin;
+    sumBinSq += bin * bin;
+    if (dropped >= TARGET && mode === 'running') setMode('full');
+  }
+
+  function step(f) {
+    // f = frame-rate normalising factor (1 at 60fps)
+    for (let i = balls.length - 1; i >= 0; i--) {
+      const b = balls[i];
+      b.vy += G * f;
+      b.x += b.vx * f;
+      b.y += b.vy * f;
+
+      if (b.row < ROWS) {
+        if (b.y >= rowY(b.row)) deflect(b);
+      } else {
+        // past the last peg — falling into its bin
+        b.x += (b.tx - b.x) * clamp(0.12 * f, 0, 1);
+        if (b.y >= BINBOT - BALL_R) { land(b); balls.splice(i, 1); }
+      }
+    }
+    for (let i = sparks.length - 1; i >= 0; i--) {
+      sparks[i].life -= 0.055 * f;
+      if (sparks[i].life <= 0) sparks.splice(i, 1);
+    }
+  }
+
+  // Bins are normalised to the tallest one, so the SHAPE is what you watch
+  // and the pile can never outgrow the board.
+  let binScale = 10;   // floor, so early columns grow from zero instead of snapping full
+  function binFillPx(bin) {
+    const b = clamp(bin, 0, BINS - 1);
+    return (bins[b] / binScale) * BINH;
+  }
+
+  // ── drawing ───────────────────────────────────────────────────────
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+
+    binScale = 10;
+    for (let i = 0; i < BINS; i++) if (bins[i] > binScale) binScale = bins[i];
+
+    // theoretical curve, drawn behind the bars as a filled silhouette
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(binX(0) - S / 2, BINBOT);
+    for (let t = 0; t <= 240; t++) {
+      const b = (t / 240) * ROWS;                       // continuous bin coordinate
+      const z = (b - EXP_MEAN) / EXP_SD;
+      const p = Math.exp(-0.5 * z * z);                 // normal, peak = 1
+      ctx.lineTo(binX(b), BINBOT - p * BINH * 0.995);
+    }
+    ctx.lineTo(binX(ROWS) + S / 2, BINBOT);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(167,139,250,.07)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(196,181,253,.55)';
+    ctx.lineWidth = 1.6;
+    ctx.setLineDash([5, 5]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+
+    // bins
+    for (let b = 0; b < BINS; b++) {
+      const x = binX(b) - S / 2 + 2.5;
+      const w = S - 5;
+      // slot walls
+      ctx.strokeStyle = 'rgba(150,150,200,.10)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x - 0.5, BINTOP, w + 1, BINBOT - BINTOP);
+      const h = binFillPx(b);
+      if (h < 0.6) continue;
+      const g = ctx.createLinearGradient(0, BINBOT - h, 0, BINBOT);
+      g.addColorStop(0, BIN_COL[b]);
+      g.addColorStop(1, 'hsl(' + (188 + (1 - Math.abs(b - ROWS / 2) / (ROWS / 2)) * 72).toFixed(0) + ' 70% 32%)');
+      ctx.fillStyle = g;
+      ctx.fillRect(x, BINBOT - h, w, h);
+      // bright cap so the top edge of each column reads clearly
+      ctx.fillStyle = BIN_GLOW[b];
+      ctx.fillRect(x, BINBOT - h, w, Math.min(2.5, h));
+    }
+
+    // baseline
+    ctx.fillStyle = 'rgba(150,150,200,.22)';
+    ctx.fillRect(binX(0) - S / 2, BINBOT, ROWS * S + S, 1.5);
+
+    // pegs
+    for (let r = 0; r < ROWS; r++) {
+      const y = rowY(r);
+      for (let c = 0; c <= r; c++) {
+        ctx.beginPath();
+        ctx.arc(lattice(r, c), y, PEG_R, 0, TAU);
+        ctx.fillStyle = 'rgba(174,174,214,.34)';
+        ctx.fill();
+      }
+    }
+
+    // peg sparks
+    for (let i = 0; i < sparks.length; i++) {
+      const s = sparks[i];
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, PEG_R + 5 * (1 - s.life), 0, TAU);
+      ctx.strokeStyle = 'rgba(196,181,253,' + (s.life * 0.5).toFixed(3) + ')';
+      ctx.lineWidth = 1.4;
+      ctx.stroke();
+    }
+
+    // balls
+    for (let i = 0; i < balls.length; i++) {
+      const b = balls[i];
+      const col = BIN_COL[clamp(b.col, 0, BINS - 1)];
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, BALL_R, 0, TAU);
+      ctx.fillStyle = col;
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(b.x - BALL_R * 0.3, b.y - BALL_R * 0.35, BALL_R * 0.34, 0, TAU);
+      ctx.fillStyle = 'rgba(255,255,255,.55)';
+      ctx.fill();
+    }
+
+    // funnel lip above the first peg
+    ctx.strokeStyle = 'rgba(150,150,200,.22)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(CX - 46, TOP - ROWGAP * 1.9);
+    ctx.lineTo(CX - 11, TOP - ROWGAP * 0.95);
+    ctx.moveTo(CX + 46, TOP - ROWGAP * 1.9);
+    ctx.lineTo(CX + 11, TOP - ROWGAP * 0.95);
+    ctx.stroke();
+  }
+
+  // ── UI sync (throttled — the DOM is slower than the canvas) ───────
+  const cache = { d: -1, m: '', s: '', f: '' };
+  function syncUI() {
+    if (dropped !== cache.d) {
+      cache.d = dropped;
+      els.dropped.textContent = dropped.toLocaleString('en-US');
+    }
+    if (dropped < 2) {
+      if (cache.m !== '—') { cache.m = cache.s = cache.f = '—';
+        els.mean.textContent = els.sd.textContent = els.fit.textContent = '—';
+        els.barFit.style.width = '0%'; }
+      return;
+    }
+    const mean = sumBin / dropped;
+    const variance = Math.max(0, sumBinSq / dropped - mean * mean);
+    const sd = Math.sqrt(variance);
+
+    // total variation distance between observed and Binomial(14, ½)
+    let tvd = 0;
+    for (let b = 0; b < BINS; b++) tvd += Math.abs(bins[b] / dropped - EXP[b]);
+    const fit = clamp((1 - tvd / 2) * 100, 0, 100);
+
+    const ms = mean.toFixed(2), ss = sd.toFixed(2), fs = fit.toFixed(1) + '%';
+    if (ms !== cache.m) { cache.m = ms; els.mean.textContent = ms; }
+    if (ss !== cache.s) { cache.s = ss; els.sd.textContent = ss; }
+    if (fs !== cache.f) {
+      cache.f = fs; els.fit.textContent = fs;
+      els.barFit.style.width = fit.toFixed(1) + '%';
+    }
+  }
+
+  function setMode(m) {
+    mode = m;
+    const M = MODES[m];
+    els.pillTxt.textContent = M.pill;
+    els.pill.className = 'pill st-' + M.cls;
+    els.startLb.textContent = M.btn;
+    els.start.disabled = (m === 'full');
+  }
+
+  function toggle() {
+    if (mode === 'idle' || mode === 'paused') setMode('running');
+    else if (mode === 'running') setMode('paused');
+  }
+
+  function reset() {
+    balls = []; sparks = [];
+    bins = new Array(BINS).fill(0);
+    dropped = 0; sumBin = 0; sumBinSq = 0; spawnAcc = 0; binScale = 10;
+    cache.d = -1; cache.m = cache.s = cache.f = '';
+    setMode('idle');
+    draw(); syncUI();
+  }
+
+  // slider is exponential: the low end is where the toy is hypnotic,
+  // the high end is where the curve snaps into place.
+  function applyRate() {
+    const v = +els.rate.value;                      // 0..100
+    rate = Math.round(Math.pow(10, v / 100 * 2.176)); // 1 .. 150
+    rate = clamp(rate, 1, 150);
+    els.rateVal.textContent = rate;
+    els.rate.style.setProperty('--pct', v + '%');
+  }
+
+  function frame(t) {
+    try {
+      const dt = Math.min(50, t - last); last = t;
+      const f = clamp(dt / 16.667, 0.3, 2.5);
+
+      if (mode === 'running') {
+        spawnAcc += rate * (dt / 1000);
+        const n = Math.floor(spawnAcc);
+        spawnAcc -= n;
+        for (let i = 0; i < n; i++) spawn();
+      }
+      if (mode === 'running' || balls.length) step(f);
+
+      draw();
+      syncUI();
+    } catch (err) {
+      showErr(err && err.message ? err.message : String(err));
+    }
+    requestAnimationFrame(frame);   // loop always survives
+  }
+
+  els.start.addEventListener('click', toggle);
+  els.reset.addEventListener('click', reset);
+  els.rate.addEventListener('input', applyRate);
+  window.addEventListener('keydown', e => {
+    if (e.target && e.target.tagName === 'INPUT') return;
+    if (e.code === 'Space') { e.preventDefault(); toggle(); }
+    else if (e.key === 'r' || e.key === 'R') reset();
+  });
+
+  applyRate();
+  setMode('idle');
+  draw(); syncUI();
+  requestAnimationFrame(frame);
+})();
+</script>
+<script defer src="/_vercel/insights/script.js"></script>
+</body>
+</html>

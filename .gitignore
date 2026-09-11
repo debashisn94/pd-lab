@@ -2,3 +2,8 @@
 .vercel
 node_modules
 *.log
+
+# AIOS session hooks write into project folders — never publish these
+memory-log.md
+NOTES.md
+*.local.md
