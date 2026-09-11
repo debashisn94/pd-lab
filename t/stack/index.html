@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stack — Products Decoded Lab</title>
+<meta name="description" content="A slab slides back and forth. Drop it. Whatever hangs over the edge is sliced off and falls away, so the tower gets narrower every time you are sloppy. One button, no ceiling.">
+<link rel="canonical" href="https://lab.productsdecoded.com/t/stack/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Products Decoded — The Lab">
+<meta property="og:title" content="Stack">
+<meta property="og:description" content="Drop the slab. Whatever hangs over the edge is sliced off, so sloppy stacking narrows the tower until there is nothing left to land on.">
+<meta property="og:url" content="https://lab.productsdecoded.com/t/stack/">
+<meta property="og:image" content="https://lab.productsdecoded.com/og/stack.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='4' y='23' width='24' height='6' rx='1' fill='%23f87171'/><rect x='7' y='16' width='19' height='6' rx='1' fill='%23fca5a5'/><rect x='10' y='9' width='15' height='6' rx='1' fill='%23e5e7eb'/><rect x='13' y='2' width='11' height='6' rx='1' fill='%23f87171'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0c0d10; --panel:#15171c; --panel2:#111318;
+    --line:#272b33; --ink:#eceef2; --dim:#8b929e;
+    --red:#f87171; --red2:#ef4444; --bone:#e5e7eb; --gold:#fbbf24;
+  }
+  *{box-sizing:border-box;margin:0}
+  html,body{height:100%}
+  body{
+    font-family:'IBM Plex Mono',monospace; color:var(--ink);
+    display:flex; flex-direction:column; min-height:100vh; overflow-x:hidden;
+    background:
+      radial-gradient(1000px 640px at 6% -12%, rgba(248,113,113,.075), transparent 60%),
+      radial-gradient(880px 620px at 104% 110%, rgba(229,231,235,.045), transparent 60%),
+      var(--bg);
+  }
+  body::before{
+    content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+    background-image:
+      linear-gradient(rgba(190,195,205,.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(190,195,205,.05) 1px, transparent 1px);
+    background-size:46px 46px;
+    -webkit-mask-image:radial-gradient(ellipse at 50% 45%, black 30%, transparent 78%);
+            mask-image:radial-gradient(ellipse at 50% 45%, black 30%, transparent 78%);
+  }
+  body::after{
+    content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+    background:radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,.42) 100%);
+  }
+  ::selection{background:rgba(248,113,113,.3)}
+
+  .topbar{
+    position:relative; z-index:2; flex:none;
+    display:flex; justify-content:space-between; align-items:center;
+    padding:14px clamp(18px,3vw,32px); border-bottom:1px solid var(--line);
+  }
+  .brand{display:flex; align-items:center; gap:11px; text-decoration:none; color:inherit; transition:opacity .2s}
+  .brand:hover{opacity:.7}
+  .brand:focus-visible{outline:2px solid var(--red); outline-offset:4px; border-radius:6px}
+  .brand svg{display:block}
+  .brand b{font:700 12px 'Unbounded'; letter-spacing:.16em}
+  .brand small{font:500 10px 'IBM Plex Mono'; letter-spacing:.2em; color:var(--dim)}
+  .pill{
+    display:inline-flex; align-items:center; gap:8px;
+    font:500 10px 'IBM Plex Mono'; letter-spacing:.18em;
+    padding:7px 14px; border-radius:999px; border:1px solid var(--line); color:var(--dim);
+    transition:color .3s, border-color .3s;
+  }
+  .pill .dot{width:7px;height:7px;border-radius:50%;background:#5a626e;transition:background .3s}
+  .pill.st-play{border-color:rgba(229,231,235,.4);color:#f3f4f6}
+  .pill.st-play .dot{background:var(--bone);box-shadow:0 0 8px rgba(229,231,235,.7);animation:pulse 1.1s infinite}
+  .pill.st-perfect{border-color:rgba(251,191,36,.6);color:#fde68a}
+  .pill.st-perfect .dot{background:var(--gold);box-shadow:0 0 10px var(--gold)}
+  .pill.st-over{border-color:rgba(248,113,113,.55);color:#fecaca}
+  .pill.st-over .dot{background:var(--red);box-shadow:0 0 10px var(--red)}
+  @keyframes pulse{50%{opacity:.3}}
+
+  .stage{
+    position:relative; z-index:1; flex:1;
+    display:grid; grid-template-columns:minmax(0,1fr) 390px;
+    gap:clamp(28px,4vw,64px); align-items:center;
+    width:100%; max-width:1010px; margin:0 auto;   /* portrait canvas, so keep the columns close */
+    padding:clamp(18px,3vh,36px) clamp(18px,4vw,48px);
+  }
+  .tower-col{display:flex; justify-content:center; min-width:0}
+  .tower{position:relative; width:min(100%,430px); aspect-ratio:560/720}
+  #cv{
+    position:absolute; inset:0; width:100%; height:100%; z-index:1;
+    border-radius:14px; border:1px solid var(--line); background:#08090c;
+    cursor:pointer; touch-action:manipulation;
+  }
+  .tower::after{
+    content:''; position:absolute; inset:0; border-radius:14px; pointer-events:none; z-index:3;
+    box-shadow:inset 0 3px 22px rgba(255,255,255,.04), inset 0 -14px 44px rgba(0,0,0,.5), 0 30px 80px rgba(0,0,0,.55);
+  }
+  .anno{position:absolute; z-index:4; font:500 9.5px 'IBM Plex Mono'; letter-spacing:.1em; color:rgba(180,188,200,.5)}
+  .a1{top:-17px; left:2px} .a2{top:-17px; right:2px}
+
+  .console{
+    position:relative; overflow:hidden;
+    background:linear-gradient(180deg,var(--panel),var(--panel2));
+    border:1px solid var(--line); border-radius:12px;
+    padding:clamp(22px,3vw,32px);
+  }
+  .console::before{content:''; position:absolute; top:0; left:0; right:0; height:3px;
+    background:linear-gradient(90deg,var(--red),var(--bone))}
+  .console::after{content:'06'; position:absolute; right:10px; top:-6px;
+    font:900 92px 'Unbounded'; color:rgba(255,255,255,.03); pointer-events:none}
+  .c-head{
+    display:flex; justify-content:space-between; padding-bottom:14px; margin-bottom:18px;
+    border-bottom:1px solid var(--line);
+    font:500 10px 'IBM Plex Mono'; letter-spacing:.24em; color:var(--dim);
+  }
+  .kicker{display:flex; align-items:center; gap:10px;
+    font:500 10px 'IBM Plex Mono'; letter-spacing:.28em; color:var(--red)}
+  .kicker::before{content:''; width:22px; height:1px; background:var(--red)}
+  h1{font:900 clamp(26px,2.5vw,36px)/1.08 'Unbounded'; letter-spacing:.01em; margin:14px 0 14px}
+  h1 em{font-style:normal; color:var(--red)}
+  .lede{font:400 12.5px/1.7 'IBM Plex Mono'; color:var(--dim); max-width:42ch; margin-bottom:20px}
+
+  .big-stat{padding:2px 0 16px; border-bottom:1px solid var(--line)}
+  .label{display:block; font:500 10px 'IBM Plex Mono'; letter-spacing:.22em; color:var(--dim)}
+  .big{display:block; font:900 clamp(42px,4.2vw,56px)/1.1 'Unbounded';
+    font-variant-numeric:tabular-nums; margin-top:6px; transition:color .25s}
+  .big.perfect{color:var(--gold)}
+  .big.over{color:var(--red)}
+  .stats{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; padding:16px 0 14px}
+  .stat{border:1px solid var(--line); border-radius:7px; padding:9px 11px; background:rgba(8,9,12,.6)}
+  .val{display:block; font:600 15px 'IBM Plex Mono'; color:#dfe3ea; margin-top:4px; font-variant-numeric:tabular-nums}
+
+  .bar-row{display:flex; align-items:center; gap:12px; margin-bottom:20px}
+  .bar{flex:1; height:10px; border:1px solid var(--line); background:#08090c; position:relative; overflow:hidden}
+  .bar i{display:block; height:100%; width:100%;
+    background:linear-gradient(90deg,var(--red),var(--bone)); transition:width .18s ease}
+  .bar::after{content:''; position:absolute; inset:0;
+    background:repeating-linear-gradient(90deg, transparent 0 9px, rgba(8,9,12,.8) 9px 10px)}
+  .bar-row .end{text-align:right}
+
+  .btns{display:flex; gap:12px; margin-bottom:16px}
+  .btn{
+    font:700 13px 'Unbounded'; letter-spacing:.08em; border:none; border-radius:9px;
+    padding:17px 12px; cursor:pointer; user-select:none;
+    transition:transform .15s ease, box-shadow .15s ease, background .2s ease, color .2s ease;
+  }
+  .btn:focus-visible{outline:2px solid var(--gold); outline-offset:3px}
+  .btn-start{
+    flex:1.7; color:#3a0c0c;
+    background:linear-gradient(180deg,#fecaca,var(--red2));
+    box-shadow:0 5px 0 #8f1d1d, 0 14px 30px rgba(239,68,68,.24);
+  }
+  .btn-start:hover:not(:disabled){transform:translateY(-2px);
+    box-shadow:0 7px 0 #8f1d1d, 0 18px 34px rgba(239,68,68,.32)}
+  .btn-start:active:not(:disabled){transform:translateY(3px); box-shadow:0 2px 0 #8f1d1d}
+  .btn-reset{
+    flex:1; color:#c9ced7; background:rgba(229,231,235,.05);
+    border:1px solid rgba(229,231,235,.3); box-shadow:0 5px 0 rgba(229,231,235,.12);
+  }
+  .btn-reset:hover{background:rgba(229,231,235,.12); transform:translateY(-2px);
+    box-shadow:0 7px 0 rgba(229,231,235,.16)}
+  .btn-reset:active{transform:translateY(3px); box-shadow:0 1px 0 rgba(229,231,235,.12)}
+  .hint{font:400 11px/1.6 'IBM Plex Mono'; color:var(--dim); letter-spacing:.04em}
+  .hint b{color:#f3f4f6; font-weight:600}
+  kbd{font:600 9.5px 'IBM Plex Mono'; border:1px solid var(--line); border-bottom-width:2px;
+    border-radius:5px; padding:2px 7px; background:#08090c; color:#b7bec9}
+  .hint span{color:#454c58}
+
+  .ticker{position:relative; z-index:2; flex:none; overflow:hidden;
+    border-top:1px solid var(--line); background:#08090c; padding:9px 0}
+  .track{display:inline-flex; white-space:nowrap; animation:tick 34s linear infinite; will-change:transform}
+  .ticker:hover .track{animation-play-state:paused}
+  .track span{font:500 10px/1 'IBM Plex Mono'; letter-spacing:.24em; color:rgba(160,170,185,.5); padding-right:56px}
+  @keyframes tick{to{transform:translateX(-50%)}}
+
+  .err{
+    position:fixed; left:16px; bottom:16px; z-index:50; max-width:70vw;
+    font:500 12px/1.5 'IBM Plex Mono'; color:#ffb4ad; background:rgba(52,14,10,.94);
+    border:1px solid rgba(255,107,94,.6); border-radius:8px; padding:10px 14px;
+    box-shadow:0 8px 30px rgba(0,0,0,.5);
+  }
+
+  @media (max-width:1020px){
+    .stage{grid-template-columns:1fr; gap:44px}
+    .console{width:100%; max-width:560px; margin:0 auto}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .track{animation:none}
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="brand" href="/" aria-label="Back to the Products Decoded Lab">
+    <svg width="30" height="24" viewBox="0 0 30 24" fill="none" aria-hidden="true">
+      <circle cx="11" cy="12" r="8" stroke="#f87171" stroke-width="2"/>
+      <circle cx="19" cy="12" r="8" stroke="#e5e7eb" stroke-width="2" opacity=".9"/>
+    </svg>
+    <b>PD LAB</b><small>· BACK TO INDEX</small>
+  </a>
+  <div class="pill st-idle" id="statusPill"><span class="dot"></span><span id="pillText">STANDBY</span></div>
+</header>
+
+<main class="stage">
+  <section class="tower-col">
+    <div class="tower" id="tower">
+      <span class="anno a1" id="annoL">SLAB 260 WIDE</span>
+      <span class="anno a2">OVERHANG IS LOST FOREVER</span>
+      <canvas id="cv" width="560" height="720"></canvas>
+    </div>
+  </section>
+
+  <aside class="console">
+    <div class="c-head"><span>CONTROL PANEL</span><span>UNIT F-02</span></div>
+    <p class="kicker">ONE BUTTON, NO CEILING</p>
+    <h1>THE<br><em>STACK</em></h1>
+    <p class="lede">A slab slides back and forth above the tower. Drop it. Whatever hangs over the edge is sliced off and falls away — so every sloppy drop makes the next one harder, and the tower narrows until there is nothing left to land on.</p>
+
+    <div class="big-stat">
+      <span class="label" id="bigLabel">HEIGHT</span>
+      <span class="big" id="bigVal">0</span>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><span class="label">PERFECT</span><span class="val" id="perfects">0</span></div>
+      <div class="stat"><span class="label">STREAK</span><span class="val" id="streak">0</span></div>
+      <div class="stat"><span class="label">BEST</span><span class="val" id="best">—</span></div>
+    </div>
+
+    <div class="bar-row">
+      <span class="label">WIDTH</span>
+      <div class="bar"><i id="barW"></i></div>
+      <span class="label end" id="barTo">260</span>
+    </div>
+
+    <div class="btns">
+      <button class="btn btn-start" id="dropBtn"><span id="dropLabel">▶ START</span></button>
+      <button class="btn btn-reset" id="resetBtn">↺ RESET</button>
+    </div>
+
+    <p class="hint" id="hint"><b>Click the tower</b> or press <kbd>SPACE</kbd> to drop. <span>·</span> Land it dead on and nothing is lost — the guides show you where.</p>
+  </aside>
+</main>
+
+<footer class="ticker" aria-hidden="true">
+  <div class="track">
+    <span>DROP ⇒ SLICE ⇒ NARROWER ◆ A PERFECT LOSES NOTHING AND GIVES 2px BACK ◆ THE SLAB SPEEDS UP AS YOU CLIMB ◆ NO CEILING ◆ </span>
+    <span>DROP ⇒ SLICE ⇒ NARROWER ◆ A PERFECT LOSES NOTHING AND GIVES 2px BACK ◆ THE SLAB SPEEDS UP AS YOU CLIMB ◆ NO CEILING ◆ </span>
+  </div>
+</footer>
+
+<div class="err" id="err" hidden></div>
+
+<script>
+(function () {
+  'use strict';
+
+  const W = 560, H = 720;
+  const BH = 30;                 // slab height
+  const START_W = 260;
+  const MARGIN = 18;             // how close to the wall the slab may travel
+  const BASE_Y = 630;            // where the first slab rests
+  const ANCHOR = 196;            // once the tower is this tall, the view scrolls instead
+  const PERFECT = 3.2;           // px of slop still counted as a clean landing
+  const REGAIN = 2;              // width handed back for a perfect, capped at START_W
+  const MIN_W = 5;               // below this there is nothing left to land on
+  const TAU = Math.PI * 2;
+  const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+
+  const cv = document.getElementById('cv');
+  const ctx = cv.getContext('2d');
+
+  let tower, cur, debris, camY, camTarget;
+  let placed, perfects, streak, bestStreak, best;
+  let state = 'idle';            // idle → playing → over
+
+  const els = {
+    pill: document.getElementById('statusPill'),
+    pillTxt: document.getElementById('pillText'),
+    annoL: document.getElementById('annoL'),
+    bigLabel: document.getElementById('bigLabel'),
+    bigVal: document.getElementById('bigVal'),
+    perfects: document.getElementById('perfects'),
+    streak: document.getElementById('streak'),
+    best: document.getElementById('best'),
+    barW: document.getElementById('barW'),
+    barTo: document.getElementById('barTo'),
+    drop: document.getElementById('dropBtn'),
+    dropLb: document.getElementById('dropLabel'),
+    reset: document.getElementById('resetBtn'),
+    hint: document.getElementById('hint'),
+    err: document.getElementById('err')
+  };
+
+  function showErr(msg) { els.err.hidden = false; els.err.textContent = '⚠ ' + msg; }
+
+  function loadBest() {
+    try { best = parseInt(localStorage.getItem('pdlab.stack.best') || '0', 10) || 0; }
+    catch (e) { best = 0; }
+  }
+  function saveBest() {
+    try { localStorage.setItem('pdlab.stack.best', String(best)); } catch (e) {}
+  }
+
+  const hueFor = (i) => (196 + i * 7) % 360;
+  // the slab speeds up as the tower grows, which is most of the difficulty curve
+  const speedFor = (n) => Math.min(7.4, 1.9 + n * 0.115);
+
+  function reset() {
+    tower = [{ x: (W - START_W) / 2, w: START_W }];
+    debris = [];
+    camY = 0; camTarget = 0;
+    placed = 0; perfects = 0; streak = 0; bestStreak = 0;
+    cur = null;
+    setState('idle');
+  }
+
+  function nextSlab() {
+    const top = tower[tower.length - 1];
+    const fromLeft = tower.length % 2 === 0;
+    cur = {
+      x: fromLeft ? MARGIN : W - MARGIN - top.w,
+      w: top.w,
+      dir: fromLeft ? 1 : -1,
+      spd: speedFor(placed)
+    };
+  }
+
+  function drop() {
+    if (state === 'idle') { setState('playing'); nextSlab(); return; }
+    if (state !== 'playing' || !cur) return;
+
+    const top = tower[tower.length - 1];
+    const off = cur.x - top.x;
+
+    if (Math.abs(off) <= PERFECT) {
+      // clean landing: nothing sliced, and a sliver of width handed back
+      const w = Math.min(START_W, top.w + REGAIN);
+      tower.push({ x: clamp(top.x - (w - top.w) / 2, 0, W - w), w: w });
+      perfects++; streak++;
+      if (streak > bestStreak) bestStreak = streak;
+      flash = 10;
+    } else {
+      const left = Math.max(cur.x, top.x);
+      const right = Math.min(cur.x + cur.w, top.x + top.w);
+      const ov = right - left;
+      streak = 0;
+
+      if (ov < MIN_W) {
+        // missed entirely — the whole slab falls away
+        debris.push(mkDebris(cur.x, cur.w, tower.length, off > 0 ? 1 : -1));
+        return gameOver();
+      }
+
+      // the part hanging over the edge is lost
+      if (off > 0) debris.push(mkDebris(right, cur.x + cur.w - right, tower.length, 1));
+      else         debris.push(mkDebris(cur.x, left - cur.x, tower.length, -1));
+
+      tower.push({ x: left, w: ov });
+    }
+
+    placed++;
+    camTarget = scrollFor(placed);
+    if (placed > best) { best = placed; saveBest(); }
+    nextSlab();
+  }
+
+  function mkDebris(x, w, idx, dir) {
+    return { x: x, w: Math.max(1, w), idx: idx, vy: -1.2, vx: dir * (0.9 + Math.random()),
+             rot: 0, vrot: dir * (0.03 + Math.random() * 0.04), life: 1 };
+  }
+
+  function gameOver() {
+    cur = null;
+    setState('over');
+  }
+
+  let flash = 0;
+
+  function step() {
+    if (state === 'playing' && cur) {
+      cur.x += cur.dir * cur.spd;
+      const lo = MARGIN, hi = W - MARGIN - cur.w;
+      if (cur.x <= lo) { cur.x = lo; cur.dir = 1; }
+      if (cur.x >= hi) { cur.x = hi; cur.dir = -1; }
+    }
+    camY += (camTarget - camY) * 0.16;
+    if (flash > 0) flash--;
+
+    for (let i = debris.length - 1; i >= 0; i--) {
+      const d = debris[i];
+      d.vy += 0.55;
+      d.yOff = (d.yOff || 0) + d.vy;
+      d.x += d.vx;
+      d.rot += d.vrot;
+      d.life -= 0.012;
+      if (d.life <= 0 || d.yOff > H + 200) debris.splice(i, 1);
+    }
+  }
+
+  // Screen y of slab i. The tower grows up from BASE_Y and the camera stays
+  // put until the stack reaches ANCHOR, after which the view scrolls instead.
+  const yOf = (i) => BASE_Y - i * BH + camY;
+  const curY = () => yOf(placed) - BH;
+  const scrollFor = (n) => Math.max(0, n * BH + ANCHOR + BH - BASE_Y);
+
+  function slab(x, y, w, hue, alpha, light) {
+    if (w <= 0) return;
+    ctx.fillStyle = 'hsla(' + hue.toFixed(0) + ' 62% ' + (light || 56) + '% / ' + alpha + ')';
+    ctx.fillRect(x, y, w, BH);
+    ctx.fillStyle = 'hsla(' + hue.toFixed(0) + ' 70% ' + ((light || 56) + 14) + '% / ' + alpha + ')';
+    ctx.fillRect(x, y, w, 4);                       // lit top edge, reads as depth
+    ctx.fillStyle = 'rgba(0,0,0,' + (0.22 * alpha).toFixed(3) + ')';
+    ctx.fillRect(x, y + BH - 3, w, 3);
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+
+    // perfect flash
+    if (flash > 0) {
+      ctx.fillStyle = 'rgba(251,191,36,' + (0.05 * flash / 10).toFixed(3) + ')';
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    // the tower, from the top down until it leaves the frame
+    for (let i = tower.length - 1; i >= 0; i--) {
+      const y = yOf(i);
+      if (y > H) break;
+      if (y + BH < -40) continue;
+      slab(tower[i].x, y, tower[i].w, hueFor(i), 1);
+    }
+
+    // aiming guides off the current top slab
+    const top = tower[tower.length - 1];
+    if (state === 'playing' && cur) {
+      ctx.strokeStyle = 'rgba(229,231,235,.22)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 5]);
+      ctx.beginPath();
+      ctx.moveTo(top.x + .5, 0);            ctx.lineTo(top.x + .5, yOf(placed));
+      ctx.moveTo(top.x + top.w - .5, 0);    ctx.lineTo(top.x + top.w - .5, yOf(placed));
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // falling offcuts
+    for (let i = 0; i < debris.length; i++) {
+      const d = debris[i];
+      const y = yOf(d.idx) + (d.yOff || 0);
+      ctx.save();
+      ctx.translate(d.x + d.w / 2, y + BH / 2);
+      ctx.rotate(d.rot);
+      slab(-d.w / 2, -BH / 2, d.w, hueFor(d.idx), Math.max(0, d.life));
+      ctx.restore();
+    }
+
+    // the slab in play
+    if (state === 'playing' && cur) {
+      slab(cur.x, curY(), cur.w, hueFor(tower.length), 1, 62);
+    }
+
+    if (state === 'idle') {
+      ctx.fillStyle = 'rgba(236,238,242,.9)';
+      ctx.font = "700 15px 'Unbounded', sans-serif";
+      ctx.textAlign = 'center';
+      ctx.fillText('CLICK TO START', W / 2, BASE_Y - 58);
+      ctx.textAlign = 'left';
+    }
+  }
+
+  const STATES = {
+    idle:    { pill: 'STANDBY',  cls: 'idle',  btn: '▶ START' },
+    playing: { pill: 'STACKING', cls: 'play',  btn: '⬇ DROP' },
+    over:    { pill: 'COLLAPSED', cls: 'over', btn: '↺ TRY AGAIN' }
+  };
+
+  function setState(s) {
+    state = s;
+    const S = STATES[s];
+    els.pillTxt.textContent = S.pill;
+    els.pill.className = 'pill st-' + S.cls;
+    els.dropLb.textContent = S.btn;
+    els.bigVal.classList.toggle('over', s === 'over');
+
+    if (s === 'over') {
+      els.bigLabel.textContent = 'FINAL HEIGHT';
+      els.hint.innerHTML = 'Ran out of ledge at <b>' + placed + '</b>. <span>·</span> ' +
+        (bestStreak > 1 ? 'Best run of clean drops: <b>' + bestStreak + '</b>.' : 'A clean drop gives width back — that is the only way up.');
+    } else if (s === 'playing') {
+      els.bigLabel.textContent = 'HEIGHT';
+      els.hint.innerHTML = '<b>Click the tower</b> or press <kbd>SPACE</kbd> to drop. <span>·</span> The dashed guides mark the edges you have to hit.';
+    } else {
+      els.bigLabel.textContent = 'HEIGHT';
+      els.hint.innerHTML = '<b>Click the tower</b> or press <kbd>SPACE</kbd> to drop. <span>·</span> Land it dead on and nothing is lost — the guides show you where.';
+    }
+  }
+
+  function syncUI() {
+    const top = tower[tower.length - 1];
+    els.bigVal.textContent = placed;
+    els.bigVal.classList.toggle('perfect', flash > 0);
+    els.perfects.textContent = perfects;
+    els.streak.textContent = streak + (bestStreak > streak ? ' / ' + bestStreak : '');
+    els.best.textContent = best || '—';
+    els.barW.style.width = (clamp(top.w / START_W, 0, 1) * 100).toFixed(1) + '%';
+    els.barTo.textContent = Math.round(top.w);
+    els.annoL.textContent = 'SLAB ' + Math.round(top.w) + ' WIDE · SPEED ' + speedFor(placed).toFixed(1);
+  }
+
+  function act() {
+    if (state === 'over') { reset(); setState('playing'); nextSlab(); return; }
+    drop();
+  }
+
+  cv.addEventListener('pointerdown', e => { e.preventDefault(); act(); });
+  els.drop.addEventListener('click', act);
+  els.reset.addEventListener('click', () => reset());
+  window.addEventListener('keydown', e => {
+    if (e.code === 'Space') { e.preventDefault(); act(); }
+    else if (e.key === 'r' || e.key === 'R') reset();
+  });
+
+  function frame() {
+    try { step(); draw(); syncUI(); }
+    catch (err) { showErr(err && err.message ? err.message : String(err)); }
+    requestAnimationFrame(frame);   // loop always survives
+  }
+
+  loadBest();
+  reset();
+  requestAnimationFrame(frame);
+})();
+</script>
+<script defer src="/_vercel/insights/script.js"></script>
+</body>
+</html>
